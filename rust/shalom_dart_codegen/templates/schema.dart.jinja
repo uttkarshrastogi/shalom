@@ -3,6 +3,9 @@
 {% if schema.context.types.inputs | length > 0 %}
 import 'package:shalom_core/shalom_core.dart';
 {% endif %}
+{% for import in custom_scalar_imports %}
+import 'package:{{ import }}';
+{% endfor %}
 
 // ------------ Enum DEFINITIONS -------------
 {% for _, enum in schema.context.types.enums | items %}

@@ -1,0 +1,21 @@
+scalar Point
+
+type Location {
+  required: Point!
+  optional: Point
+  maybe: Point
+}
+
+input PointInput {
+  required: Point!
+  optional: Point = "POINT (0 0)"
+  maybe: Point
+}
+
+type Query {
+  getLocation: Location!
+}
+
+type Mutation {
+  sendPoint(input: PointInput!): Boolean
+}

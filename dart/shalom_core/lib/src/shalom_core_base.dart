@@ -1,4 +1,9 @@
 typedef JsonObject = Map<String, dynamic>;
+abstract class CustomScalarImpl<T> {
+  T deserialize(dynamic raw);
+  dynamic serialize(T value);
+}
+
 
 class GraphQLResult<T> {
   final T? data;

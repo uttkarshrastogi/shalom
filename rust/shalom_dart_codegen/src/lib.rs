@@ -1,8 +1,7 @@
 use anyhow::Result;
-use lazy_static::lazy_static;
 use log::{info, trace};
 use minijinja::{context, value::ViaDeserialize, Environment};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use shalom_core::{
     operation::{context::OperationContext, types::Selection},
     schema::{
@@ -11,28 +10,154 @@ use shalom_core::{
     },
 };
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
 use std::{ops::Deref, rc::Rc};
 
-struct TemplateEnv<'a> {
-    env: Environment<'a>,
+#[derive(Debug, Clone)]
+struct DartRef {
+    import: Option<String>,
+    name: String,
 }
 
-lazy_static! {
-    static ref DEFAULT_SCALARS_MAP: HashMap<String, String> = HashMap::from([
-        ("ID".to_string(), "String".to_string()),
-        ("String".to_string(), "String".to_string()),
-        ("Int".to_string(), "int".to_string()),
-        ("Float".to_string(), "double".to_string()),
-        ("Boolean".to_string(), "bool".to_string()),
-    ]);
+#[derive(Debug, Clone)]
+struct DartScalar {
+    dart_type: DartRef,
+    impl_ref: Option<DartRef>,
 }
-#[cfg(windows)]
-const LINE_ENDING: &str = "\r\n";
-#[cfg(not(windows))]
+
+fn parse_dart_ref(value: &str) -> DartRef {
+    if let Some((import, name)) = value.split_once('#') {
+        DartRef {
+            import: Some(format!("package:{}", import)),
+            name: name.to_string(),
+        }
+    } else {
+        DartRef {
+            import: None,
+            name: value.to_string(),
+        }
+    }
+}
+
+fn builtin_scalars() -> HashMap<String, DartScalar> {
+    let mut map = HashMap::new();
+    map.insert(
+        "ID".to_string(),
+        DartScalar {
+            dart_type: DartRef {
+                import: None,
+                name: "String".to_string(),
+            },
+            impl_ref: None,
+        },
+    );
+    map.insert(
+        "String".to_string(),
+        DartScalar {
+            dart_type: DartRef {
+                import: None,
+                name: "String".to_string(),
+            },
+            impl_ref: None,
+        },
+    );
+    map.insert(
+        "Int".to_string(),
+        DartScalar {
+            dart_type: DartRef {
+                import: None,
+                name: "int".to_string(),
+            },
+            impl_ref: None,
+        },
+    );
+    map.insert(
+        "Float".to_string(),
+        DartScalar {
+            dart_type: DartRef {
+                import: None,
+                name: "double".to_string(),
+            },
+            impl_ref: None,
+        },
+    );
+    map.insert(
+        "Boolean".to_string(),
+        DartScalar {
+            dart_type: DartRef {
+                import: None,
+                name: "bool".to_string(),
+            },
+            impl_ref: None,
+        },
+    );
+    map
+}
+
+#[derive(Debug, Deserialize)]
+struct ShalomConfig {
+    #[serde(default)]
+    scalars: HashMap<String, ScalarConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ScalarConfig {
+    dart_type: String,
+    #[serde(rename = "impl")]
+    impl_ref: String,
+}
+
+fn read_shalom_config(pwd: &Path) -> ShalomConfig {
+    let path = pwd.join("shalom.yml");
+    if path.exists() {
+        let content = fs::read_to_string(path).unwrap();
+        serde_yaml::from_str(&content).unwrap()
+    } else {
+        ShalomConfig {
+            scalars: HashMap::new(),
+        }
+    }
+}
+
+fn load_scalars_map(pwd: &Path) -> HashMap<String, DartScalar> {
+    let mut map = builtin_scalars();
+    let config = read_shalom_config(pwd);
+    for (name, scalar_cfg) in config.scalars {
+        map.insert(
+            name,
+            DartScalar {
+                dart_type: parse_dart_ref(&scalar_cfg.dart_type),
+                impl_ref: Some(parse_dart_ref(&scalar_cfg.impl_ref)),
+            },
+        );
+    }
+    map
+}
+
+fn collect_imports(scalars_map: &HashMap<String, DartScalar>) -> Vec<String> {
+    let mut set = HashSet::new();
+    for scalar in scalars_map.values() {
+        if let Some(import) = &scalar.dart_type.import {
+            set.insert(import.clone());
+        }
+        if let Some(impl_ref) = &scalar.impl_ref {
+            if let Some(import) = &impl_ref.import {
+                set.insert(import.clone());
+            }
+        }
+    }
+    set.into_iter().collect()
+}
+
+struct TemplateEnv<'a> {
+    env: Environment<'a>,
+    scalars_map: HashMap<String, DartScalar>,
+    scalar_imports: Vec<String>,
+}
+
 const LINE_ENDING: &str = "\n";
 
 mod ext_jinja_fns {
@@ -44,16 +169,19 @@ mod ext_jinja_fns {
     #[allow(unused_variables)]
     pub fn type_name_for_selection(
         schema_ctx: &SchemaContext,
+        scalars_map: &HashMap<String, DartScalar>,
         selection: ViaDeserialize<Selection>,
     ) -> String {
         match selection.0 {
             Selection::Scalar(scalar) => {
-                let resolved = DEFAULT_SCALARS_MAP.get(&scalar.concrete_type.name).unwrap();
+                let resolved = scalars_map
+                    .get(&scalar.concrete_type.name)
+                    .unwrap();
+                let mut ty = resolved.dart_type.name.clone();
                 if scalar.common.is_optional {
-                    format!("{}?", resolved)
-                } else {
-                    resolved.clone()
+                    ty.push('?');
                 }
+                ty
             }
             Selection::Object(object) => {
                 if object.common.is_optional {
@@ -75,12 +203,18 @@ mod ext_jinja_fns {
     #[allow(unused_variables)]
     pub fn type_name_for_field(
         schema_ctx: &SchemaContext,
+        scalars_map: &HashMap<String, DartScalar>,
         input: ViaDeserialize<InputFieldDefinition>,
     ) -> String {
         let ty_name = input.0.ty.name();
         let ty = input.resolve_type(schema_ctx);
         let resolved = match ty {
-            GraphQLAny::Scalar(_) => DEFAULT_SCALARS_MAP.get(&ty_name).unwrap().clone(),
+            GraphQLAny::Scalar(_) => scalars_map
+                .get(&ty_name)
+                .unwrap()
+                .dart_type
+                .name
+                .clone(),
             GraphQLAny::InputObject(_) => ty_name,
             _ => unimplemented!("input type not supported"),
         };
@@ -143,10 +277,66 @@ mod ext_jinja_fns {
             value
         }
     }
+
+    pub fn is_custom_scalar_field(
+        schema_ctx: &SchemaContext,
+        scalars_map: &HashMap<String, DartScalar>,
+        input: ViaDeserialize<InputFieldDefinition>,
+    ) -> bool {
+        let ty_name = input.0.ty.name();
+        if let GraphQLAny::Scalar(_) = input.resolve_type(schema_ctx) {
+            scalars_map
+                .get(&ty_name)
+                .and_then(|d| d.impl_ref.as_ref())
+                .is_some()
+        } else {
+            false
+        }
+    }
+
+    pub fn scalar_impl_for_field(
+        schema_ctx: &SchemaContext,
+        scalars_map: &HashMap<String, DartScalar>,
+        input: ViaDeserialize<InputFieldDefinition>,
+    ) -> String {
+        let ty_name = input.0.ty.name();
+        scalars_map
+            .get(&ty_name)
+            .and_then(|d| d.impl_ref.as_ref())
+            .map(|r| r.name.clone())
+            .unwrap()
+    }
+
+    pub fn is_custom_scalar_selection(
+        scalars_map: &HashMap<String, DartScalar>,
+        selection: ViaDeserialize<Selection>,
+    ) -> bool {
+        match selection.0 {
+            Selection::Scalar(s) => scalars_map
+                .get(&s.concrete_type.name)
+                .and_then(|d| d.impl_ref.as_ref())
+                .is_some(),
+            _ => false,
+        }
+    }
+
+    pub fn scalar_impl_for_selection(
+        scalars_map: &HashMap<String, DartScalar>,
+        selection: ViaDeserialize<Selection>,
+    ) -> String {
+        match selection.0 {
+            Selection::Scalar(s) => scalars_map
+                .get(&s.concrete_type.name)
+                .and_then(|d| d.impl_ref.as_ref())
+                .map(|r| r.name.clone())
+                .unwrap(),
+            _ => panic!("not a scalar"),
+        }
+    }
 }
 
 impl TemplateEnv<'_> {
-    fn new(schema_ctx: SharedSchemaContext) -> Self {
+    fn new(schema_ctx: SharedSchemaContext, scalars_map: HashMap<String, DartScalar>) -> Self {
         let mut env = Environment::new();
         env.add_template(
             "operation",
@@ -158,16 +348,34 @@ impl TemplateEnv<'_> {
         env.add_template("macros", include_str!("../templates/macros.dart.jinja"))
             .unwrap();
         let schema_ctx_clone = schema_ctx.clone();
+        let scalars_map_clone = scalars_map.clone();
         env.add_function("type_name_for_selection", move |a: _| {
-            ext_jinja_fns::type_name_for_selection(&schema_ctx_clone, a)
+            ext_jinja_fns::type_name_for_selection(&schema_ctx_clone, &scalars_map_clone, a)
         });
         let schema_ctx_clone = schema_ctx.clone();
+        let scalars_map_clone = scalars_map.clone();
         env.add_function("type_name_for_field", move |a: _| {
-            ext_jinja_fns::type_name_for_field(&schema_ctx_clone, a)
+            ext_jinja_fns::type_name_for_field(&schema_ctx_clone, &scalars_map_clone, a)
         });
         let schema_ctx_clone = schema_ctx.clone();
         env.add_function("is_input_type", move |a: _| {
             ext_jinja_fns::is_input_type(&schema_ctx_clone, a)
+        });
+        let scalars_map_clone = scalars_map.clone();
+        env.add_function("is_custom_scalar_field", move |a: _| {
+            ext_jinja_fns::is_custom_scalar_field(&schema_ctx_clone, &scalars_map_clone, a)
+        });
+        let scalars_map_clone = scalars_map.clone();
+        env.add_function("scalar_impl_for_field", move |a: _| {
+            ext_jinja_fns::scalar_impl_for_field(&schema_ctx_clone, &scalars_map_clone, a)
+        });
+        let scalars_map_clone = scalars_map.clone();
+        env.add_function("is_custom_scalar_selection", move |a: _| {
+            ext_jinja_fns::is_custom_scalar_selection(&scalars_map_clone, a)
+        });
+        let scalars_map_clone = scalars_map.clone();
+        env.add_function("scalar_impl_for_selection", move |a: _| {
+            ext_jinja_fns::scalar_impl_for_selection(&scalars_map_clone, a)
         });
         env.add_function(
             "parse_field_default_value",
@@ -177,7 +385,9 @@ impl TemplateEnv<'_> {
         env.add_function("value_or_last", ext_jinja_fns::value_or_last);
         env.add_filter("if_not_last", ext_jinja_fns::if_not_last);
 
-        Self { env }
+        let imports = collect_imports(&scalars_map);
+
+        Self { env, scalars_map, scalar_imports: imports }
     }
 
     fn render_operation<S: Serialize, T: Serialize>(
@@ -189,6 +399,10 @@ impl TemplateEnv<'_> {
         let mut context = HashMap::new();
         context.insert("schema", context! {context => schema_ctx});
         context.insert("operation", context! {context => operations_ctx});
+        context.insert(
+            "custom_scalar_imports",
+            context! {context => self.scalar_imports.clone()},
+        );
         trace!("resolved operation template; rendering...");
         template.render(&context).unwrap()
     }
@@ -197,6 +411,10 @@ impl TemplateEnv<'_> {
         let template = self.env.get_template("schema").unwrap();
         let mut context = HashMap::new();
         context.insert("schema", context! {context => schema_ctx});
+        context.insert(
+            "custom_scalar_imports",
+            context! {context => self.scalar_imports.clone()},
+        );
         trace!("resolved schema template; rendering...");
         template.render(&context).unwrap()
     }
@@ -243,7 +461,8 @@ fn generate_schema_file(template_env: &TemplateEnv, path: &Path, schema_ctx: &Sc
 pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
     info!("codegen started in working directory {}", pwd.display());
     let ctx = shalom_core::entrypoint::parse_directory(pwd)?;
-    let template_env = TemplateEnv::new(ctx.schema_ctx.clone());
+    let scalars_map = load_scalars_map(pwd);
+    let template_env = TemplateEnv::new(ctx.schema_ctx.clone(), scalars_map);
     // find all operation files in the directory
     // and remove operations that are not included in the current codegen session.
     let existing_op_names =

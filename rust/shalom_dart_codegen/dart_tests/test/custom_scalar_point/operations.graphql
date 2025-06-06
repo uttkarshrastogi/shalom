@@ -1,0 +1,11 @@
+query GetLocation {
+  getLocation {
+    required
+    optional
+    maybe
+  }
+}
+
+mutation SendPoint($input: PointInput!) {
+  sendPoint(input: $input)
+}
