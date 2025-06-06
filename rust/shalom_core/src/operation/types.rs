@@ -1,3 +1,5 @@
+use crate::context::SharedShalomGlobalContext;
+
 use std::{cell::RefCell, rc::Rc};
 
 use apollo_compiler::Node;
@@ -108,3 +110,30 @@ impl EnumSelection {
         })
     }
 }
+
+pub fn dart_type_for_scalar(
+    scalar_name: &str,
+    ctx: &SharedShalomGlobalContext,
+) -> String {
+    if let Some(mapping) = ctx.find_scalar(scalar_name) {
+        // Example: "lib/src/point.dart#Point"
+        // Just extract the type name after '#'
+        return mapping
+            .scalar_dart_type
+            .split('#')
+            .last()
+            .unwrap_or("dynamic")
+            .to_string();
+    }
+
+    // Default fallback for known GraphQL scalars
+    match scalar_name {
+        "String" => "String".to_string(),
+        "Int" => "int".to_string(),
+        "Float" => "double".to_string(),
+        "Boolean" => "bool".to_string(),
+        "ID" => "String".to_string(),
+        _ => "dynamic".to_string(),
+    }
+}
+

@@ -1,0 +1,7 @@
+scalars:
+  - graphql_name: Point
+    scalar_dart_type: pointScalarImpl
+    impl_path: lib/src/point.dart#pointScalarImpl
+  - graphql_name: DateTime
+    scalar_dart_type: DateTime
+    impl_path: lib/src/date_time.dart#dateTimeScalarImpl

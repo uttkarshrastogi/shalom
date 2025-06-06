@@ -4,6 +4,7 @@ use log::{info, trace};
 use minijinja::{context, value::ViaDeserialize, Environment};
 use serde::Serialize;
 use shalom_core::{
+    context::{ShalomGlobalContext, SharedShalomGlobalContext},
     operation::{context::OperationContext, types::Selection},
     schema::{
         context::{SchemaContext, SharedSchemaContext},
@@ -14,8 +15,9 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
+    rc::Rc,
+    ops::Deref,
 };
-use std::{ops::Deref, rc::Rc};
 
 struct TemplateEnv<'a> {
     env: Environment<'a>,
@@ -30,29 +32,49 @@ lazy_static! {
         ("Boolean".to_string(), "bool".to_string()),
     ]);
 }
+
 #[cfg(windows)]
 const LINE_ENDING: &str = "\r\n";
 #[cfg(not(windows))]
 const LINE_ENDING: &str = "\n";
 
 mod ext_jinja_fns {
-
-    use shalom_core::schema::types::FieldType;
-
     use super::*;
+    use shalom_core::schema::types::FieldType;
 
     #[allow(unused_variables)]
     pub fn type_name_for_selection(
-        schema_ctx: &SchemaContext,
+        ctx: &ShalomGlobalContext,
         selection: ViaDeserialize<Selection>,
     ) -> String {
         match selection.0 {
             Selection::Scalar(scalar) => {
-                let resolved = DEFAULT_SCALARS_MAP.get(&scalar.concrete_type.name).unwrap();
-                if scalar.common.is_optional {
-                    format!("{}?", resolved)
+                let scalar_name = &scalar.concrete_type.name;
+                if let Some(mapping) = ctx.find_scalar(scalar_name) {
+                    let mut resolved = mapping
+                        .scalar_dart_type
+                        .split('#')
+                        .last()
+                        .unwrap_or("dynamic")
+                        .to_string();
+                    if scalar.common.is_optional {
+                        resolved.push('?');
+                    }
+                    return resolved;
                 } else {
-                    resolved.clone()
+                    let mut fallback = match scalar_name.as_str() {
+                        "String" => "String",
+                        "Int" => "int",
+                        "Float" => "double",
+                        "Boolean" => "bool",
+                        "ID" => "String",
+                        _ => "dynamic",
+                    }
+                    .to_string();
+                    if scalar.common.is_optional {
+                        fallback.push('?');
+                    }
+                    return fallback;
                 }
             }
             Selection::Object(object) => {
@@ -94,12 +116,12 @@ mod ext_jinja_fns {
     }
 
     pub fn parse_field_default_value(input: ViaDeserialize<InputFieldDefinition>) -> String {
-        let default_value = input.0.default_value;
-        if default_value.is_none() {
-            panic!("cannot parse default value that does not exist")
-        }
-        let default_value = default_value.unwrap();
-        default_value.to_string()
+        input
+            .0
+            .default_value
+            .as_ref()
+            .expect("cannot parse default value that does not exist")
+            .to_string()
     }
 
     pub fn is_input_type(schema_ctx: &SchemaContext, ty: ViaDeserialize<FieldType>) -> bool {
@@ -109,21 +131,12 @@ mod ext_jinja_fns {
 
     pub fn docstring(value: Option<String>) -> String {
         match value {
-            Some(doc) => {
-                let mut out = String::new();
-                for (i, line) in doc.lines().enumerate() {
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() {
-                        continue;
-                    }
-                    if i > 0 {
-                        out.push_str(LINE_ENDING);
-                    }
-                    out.push_str("/// ");
-                    out.push_str(trimmed);
-                }
-                out
-            }
+            Some(doc) => doc
+                .lines()
+                .filter(|line| !line.trim().is_empty())
+                .map(|line| format!("/// {}", line.trim()))
+                .collect::<Vec<_>>()
+                .join(LINE_ENDING),
             None => String::new(),
         }
     }
@@ -146,8 +159,9 @@ mod ext_jinja_fns {
 }
 
 impl TemplateEnv<'_> {
-    fn new(schema_ctx: SharedSchemaContext) -> Self {
+    fn new(ctx: SharedShalomGlobalContext) -> Self {
         let mut env = Environment::new();
+
         env.add_template(
             "operation",
             include_str!("../templates/operation.dart.jinja"),
@@ -157,18 +171,22 @@ impl TemplateEnv<'_> {
             .unwrap();
         env.add_template("macros", include_str!("../templates/macros.dart.jinja"))
             .unwrap();
-        let schema_ctx_clone = schema_ctx.clone();
+
+        let ctx_clone = ctx.clone();
         env.add_function("type_name_for_selection", move |a: _| {
-            ext_jinja_fns::type_name_for_selection(&schema_ctx_clone, a)
+            ext_jinja_fns::type_name_for_selection(&ctx_clone, a)
         });
-        let schema_ctx_clone = schema_ctx.clone();
+
+        let schema_ctx_clone = ctx.schema_ctx.clone();
         env.add_function("type_name_for_field", move |a: _| {
             ext_jinja_fns::type_name_for_field(&schema_ctx_clone, a)
         });
-        let schema_ctx_clone = schema_ctx.clone();
+
+        let schema_ctx_clone = ctx.schema_ctx.clone();
         env.add_function("is_input_type", move |a: _| {
             ext_jinja_fns::is_input_type(&schema_ctx_clone, a)
         });
+
         env.add_function(
             "parse_field_default_value",
             ext_jinja_fns::parse_field_default_value,
@@ -204,9 +222,10 @@ impl TemplateEnv<'_> {
 
 fn create_dir_if_not_exists(path: &Path) {
     if !path.exists() {
-        std::fs::create_dir_all(path).unwrap();
+        fs::create_dir_all(path).unwrap();
     }
 }
+
 static END_OF_FILE: &str = "shalom.dart";
 static GRAPHQL_DIRECTORY: &str = "__graphql__";
 
@@ -233,21 +252,21 @@ fn generate_operations_file(
 fn generate_schema_file(template_env: &TemplateEnv, path: &Path, schema_ctx: &SchemaContext) {
     info!("rendering schema file");
     let rendered_content = template_env.render_schema(schema_ctx);
-    let generation_target = path
-        .join(GRAPHQL_DIRECTORY)
-        .join(format!("schema.{}", END_OF_FILE));
+    let output_dir = path.join(GRAPHQL_DIRECTORY);
+    create_dir_if_not_exists(&output_dir); // ✅ Ensure folder exists
+    let generation_target = output_dir.join(format!("schema.{}", END_OF_FILE));
     fs::write(&generation_target, rendered_content).unwrap();
     info!("Generated {}", generation_target.display());
 }
 
+
 pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
     info!("codegen started in working directory {}", pwd.display());
-    let ctx = shalom_core::entrypoint::parse_directory(pwd)?;
-    let template_env = TemplateEnv::new(ctx.schema_ctx.clone());
-    // find all operation files in the directory
-    // and remove operations that are not included in the current codegen session.
+    let ctx = shalom_core::entrypoint::parse_directory(&pwd)?;
+    let template_env = TemplateEnv::new(ctx.clone());
+
     let existing_op_names =
-        glob::glob(pwd.join(format!("**/*.{}", END_OF_FILE,)).to_str().unwrap())?;
+        glob::glob(pwd.join(format!("**/*.{}", END_OF_FILE)).to_str().unwrap())?;
     for entry in existing_op_names {
         let entry = entry?;
         if entry.is_file() {
@@ -265,9 +284,11 @@ pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
             }
         }
     }
+
     generate_schema_file(&template_env, pwd, ctx.schema_ctx.deref());
     for (name, operation) in ctx.operations() {
         generate_operations_file(&template_env, &name, operation, ctx.schema_ctx.clone());
     }
+
     Ok(())
 }
