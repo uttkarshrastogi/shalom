@@ -1,0 +1,4 @@
+scalars:
+  Point:
+    dart_type: dart_tests/point.dart#Point
+    impl: dart_tests/point.dart#pointScalarImpl

@@ -1,19 +1,23 @@
 
 {% macro field_to_json_logic(fields) %}
 {% for name, field in fields | items %}
-    {% if field.is_optional and field.default_value is none %}  
+    {% if field.is_optional and field.default_value is none %}
         if ({{ name }}.isSome()) {
-            {% if is_input_type(field.ty) %} 
-                data["{{ name }}"] = {{ name }}.some()?.toJson();   
+            {% if is_input_type(field.ty) %}
+                data["{{ name }}"] = {{ name }}.some()?.toJson();
+            {% elif is_custom_scalar_field(field) %}
+                data["{{ name }}"] = {{ scalar_impl_for_field(field) }}.serialize({{ name }}.some()!);
             {% else %}
                 data["{{ name }}"] = {{ name }}.some();
             {% endif %}
-        } 
+        }
     {% else %}
         {% if is_input_type(field.ty) %}
             data["{{ name }}"] = {{ name }}.toJson();
+        {% elif is_custom_scalar_field(field) %}
+            data["{{ name }}"] = {{ scalar_impl_for_field(field) }}.serialize({{ name }});
         {% else %}
-            data["{{ name }}"] = {{ name }}; 
+            data["{{ name }}"] = {{ name }};
         {% endif %}
     {% endif %}
 {% endfor %}
