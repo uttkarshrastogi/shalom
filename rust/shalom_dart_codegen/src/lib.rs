@@ -4,13 +4,17 @@ use log::{info, trace};
 use minijinja::{context, value::ViaDeserialize, Environment};
 use serde::Serialize;
 use shalom_core::{
-    context::{ShalomGlobalContext, SharedShalomGlobalContext},
-    operation::{context::OperationContext, types::Selection},
+    context::{SharedShalomGlobalContext},
+    operation::{
+        context::OperationContext,
+        types::{Selection, dart_type_for_scalar},
+    },
     schema::{
         context::{SchemaContext, SharedSchemaContext},
         types::{GraphQLAny, InputFieldDefinition},
     },
 };
+
 use std::{
     collections::HashMap,
     fs,
@@ -44,39 +48,32 @@ mod ext_jinja_fns {
 
     #[allow(unused_variables)]
     pub fn type_name_for_selection(
-        ctx: &ShalomGlobalContext,
+        ctx: &SharedShalomGlobalContext,
         selection: ViaDeserialize<Selection>,
     ) -> String {
         match selection.0 {
-            Selection::Scalar(scalar) => {
-                let scalar_name = &scalar.concrete_type.name;
-                if let Some(mapping) = ctx.find_scalar(scalar_name) {
-                    let mut resolved = mapping
-                        .scalar_dart_type
-                        .split('#')
-                        .last()
-                        .unwrap_or("dynamic")
-                        .to_string();
-                    if scalar.common.is_optional {
-                        resolved.push('?');
-                    }
-                    return resolved;
-                } else {
-                    let mut fallback = match scalar_name.as_str() {
-                        "String" => "String",
-                        "Int" => "int",
-                        "Float" => "double",
-                        "Boolean" => "bool",
-                        "ID" => "String",
-                        _ => "dynamic",
-                    }
-                    .to_string();
-                    if scalar.common.is_optional {
-                        fallback.push('?');
-                    }
-                    return fallback;
-                }
-            }
+           Selection::Scalar(scalar) => {
+               let scalar_name = &scalar.concrete_type.name;
+               if let Some(mapping) = ctx.find_scalar(scalar_name) {
+                   let mut resolved = mapping
+                       .scalar_dart_type
+                       .split('#')
+                       .last()
+                       .unwrap_or("dynamic")
+                       .to_string();
+                   if scalar.common.is_optional {
+                       resolved.push('?');
+                   }
+                   return resolved;
+               } else {
+                   let mut resolved = dart_type_for_scalar(scalar_name, ctx);
+                   if scalar.common.is_optional {
+                       resolved.push('?');
+                   }
+                   return resolved;
+               }
+           }
+
             Selection::Object(object) => {
                 if object.common.is_optional {
                     format!("{}?", object.common.full_name)
@@ -95,25 +92,38 @@ mod ext_jinja_fns {
     }
 
     #[allow(unused_variables)]
-    pub fn type_name_for_field(
-        schema_ctx: &SchemaContext,
-        input: ViaDeserialize<InputFieldDefinition>,
-    ) -> String {
-        let ty_name = input.0.ty.name();
-        let ty = input.resolve_type(schema_ctx);
-        let resolved = match ty {
-            GraphQLAny::Scalar(_) => DEFAULT_SCALARS_MAP.get(&ty_name).unwrap().clone(),
-            GraphQLAny::InputObject(_) => ty_name,
-            _ => unimplemented!("input type not supported"),
-        };
-        if input.is_optional && input.default_value.is_none() {
-            format!("Option<{}?>", resolved)
-        } else if input.is_optional {
-            format!("{}?", resolved)
-        } else {
-            resolved
-        }
-    }
+ pub fn type_name_for_field(
+     ctx: &SharedShalomGlobalContext,
+     input: ViaDeserialize<InputFieldDefinition>,
+ ) -> String {
+     let ty_name = input.0.ty.name();
+     let ty = input.resolve_type(&ctx.schema_ctx);
+     let resolved = match ty {
+         GraphQLAny::Scalar(_) => {
+             if let Some(mapping) = ctx.find_scalar(&ty_name) {
+                 mapping
+                     .scalar_dart_type
+                     .split('#')
+                     .last()
+                     .unwrap_or("dynamic")
+                     .to_string()
+             } else {
+                 dart_type_for_scalar(&ty_name, ctx)
+             }
+         }
+         GraphQLAny::InputObject(_) => ty_name,
+         _ => unimplemented!("input type not supported"),
+     };
+
+     if input.is_optional && input.default_value.is_none() {
+         format!("Option<{}?>", resolved)
+     } else if input.is_optional {
+         format!("{}?", resolved)
+     } else {
+         resolved
+     }
+ }
+
 
     pub fn parse_field_default_value(input: ViaDeserialize<InputFieldDefinition>) -> String {
         input
@@ -177,10 +187,11 @@ impl TemplateEnv<'_> {
             ext_jinja_fns::type_name_for_selection(&ctx_clone, a)
         });
 
-        let schema_ctx_clone = ctx.schema_ctx.clone();
-        env.add_function("type_name_for_field", move |a: _| {
-            ext_jinja_fns::type_name_for_field(&schema_ctx_clone, a)
-        });
+       let ctx_clone = ctx.clone();
+       env.add_function("type_name_for_field", move |a: _| {
+           ext_jinja_fns::type_name_for_field(&ctx_clone, a)
+       });
+
 
         let schema_ctx_clone = ctx.schema_ctx.clone();
         env.add_function("is_input_type", move |a: _| {
@@ -249,15 +260,21 @@ fn generate_operations_file(
     info!("Generated {}", generation_target.display());
 }
 
-fn generate_schema_file(template_env: &TemplateEnv, path: &Path, schema_ctx: &SchemaContext) {
+fn generate_schema_file(
+    template_env: &TemplateEnv,
+    path: &Path,
+    schema_ctx: &SchemaContext,
+) -> std::io::Result<()> {
     info!("rendering schema file");
     let rendered_content = template_env.render_schema(schema_ctx);
     let output_dir = path.join(GRAPHQL_DIRECTORY);
     create_dir_if_not_exists(&output_dir); // ✅ Ensure folder exists
     let generation_target = output_dir.join(format!("schema.{}", END_OF_FILE));
-    fs::write(&generation_target, rendered_content).unwrap();
+    fs::write(&generation_target, rendered_content)?;
     info!("Generated {}", generation_target.display());
+    Ok(())
 }
+
 
 pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
     info!("codegen started in working directory {}", pwd.display());

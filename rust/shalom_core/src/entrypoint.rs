@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    context::{load_config_from_yaml, ShalomGlobalContext, SharedShalomGlobalContext}, // ✅ added config loader
+    context::{load_config_from_yaml, ShalomGlobalContext, SharedShalomGlobalContext},
     operation::context::SharedOpCtx,
     schema::{self, context::SharedSchemaContext},
 };
@@ -15,43 +15,11 @@ pub struct FoundGqlFiles {
     pub operations: Vec<PathBuf>,
 }
 
-//pub fn find_graphql_files(pwd: &Path) -> FoundGqlFiles {
-//    let mut found_files = vec![];
-//    found_files.extend(
-//        glob::glob(pwd.join("**/*.graphql").to_str().unwrap())
-//            .into_iter()
-//            .flatten(),
-//    );
-//    found_files.extend(
-//        glob::glob(pwd.join("**/*.gql").to_str().unwrap())
-//            .into_iter()
-//            .flatten(),
-//    );
-//    let mut schema = None;
-//    let mut operations = vec![];
-//    for file in found_files {
-//        let file = file.unwrap();
-//        let f_name = file.file_name().unwrap().to_str().unwrap();
-//        if f_name.contains("schema.graphql") || f_name.contains("schema.gql") {
-//            schema = Some(file);
-//        } else {
-//            operations.push(file);
-//        }
-//    }
-//    FoundGqlFiles {
-//        schema: schema.expect("No schema.graphql file found"),
-//        operations,
-//    }
-//}
 pub fn find_graphql_files(pwd: &Path) -> FoundGqlFiles {
-    println!("[DEBUG] Searching for GraphQL files in: {}", pwd.display());
-
-    let mut found_files = vec![];
-
     let graphql_glob = pwd.join("**/*.graphql").to_str().unwrap().to_string();
     let gql_glob = pwd.join("**/*.gql").to_str().unwrap().to_string();
 
-    println!("[DEBUG] Glob patterns: {}, {}", graphql_glob, gql_glob);
+    let mut found_files = vec![];
 
     found_files.extend(
         glob::glob(&graphql_glob)
@@ -65,37 +33,29 @@ pub fn find_graphql_files(pwd: &Path) -> FoundGqlFiles {
             .filter_map(Result::ok),
     );
 
-    println!("[DEBUG] Total files found: {}", found_files.len());
-
     let mut schema = None;
     let mut operations = vec![];
 
     for file in &found_files {
         let f_name = file.file_name().unwrap().to_str().unwrap();
-        println!("[DEBUG] Found file: {}", f_name);
-
         if f_name.contains("schema.graphql") || f_name.contains("schema.gql") {
-            println!("[DEBUG] Schema file detected: {}", file.display());
             schema = Some(file.clone());
         } else {
             operations.push(file.clone());
         }
     }
 
-    if schema.is_none() {
-        println!(
-            "[ERROR] No schema.graphql or schema.gql file found in {:?}",
-            pwd
+    if let Some(schema) = schema {
+        FoundGqlFiles { schema, operations }
+    } else {
+        let mut msg = format!(
+            "No schema.graphql or schema.gql file found in directory: {}",
+            pwd.display()
         );
         for file in &found_files {
-            println!(" -> Candidate file: {}", file.display());
+            msg.push_str(&format!("\n -> Candidate file: {}", file.display()));
         }
-        panic!("No schema.graphql file found");
-    }
-
-    FoundGqlFiles {
-        schema: schema.unwrap(),
-        operations,
+        panic!("{}", msg);
     }
 }
 
@@ -116,17 +76,19 @@ pub fn parse_directory(pwd: &Path) -> anyhow::Result<SharedShalomGlobalContext> 
     let schema_raw = fs::read_to_string(&files.schema)?;
     let schema_parsed = parse_schema(&schema_raw)?;
 
-    // ✅ load shalom.yml
-    let config = load_config_from_yaml("shalom.yml");
+    // Correct relative path for config
+    let config_path = pwd.join("shalom.yml");
+    let config = load_config_from_yaml(&config_path)
+        .map_err(|e| anyhow::anyhow!("Failed to load config at {}: {}", config_path.display(), e))?;
 
-    // ✅ pass config into global context
     let global_ctx = ShalomGlobalContext::new(schema_parsed, config);
 
     for operation in files.operations {
-        let content = fs::read_to_string(&operation).unwrap();
-        let parsed = parse_document(&global_ctx, &content, &operation);
-        global_ctx.register_operations(parsed.unwrap());
+        let content = fs::read_to_string(&operation)?;
+        let parsed = parse_document(&global_ctx, &content, &operation)?;
+        global_ctx.register_operations(parsed);
     }
 
     Ok(global_ctx)
 }
+

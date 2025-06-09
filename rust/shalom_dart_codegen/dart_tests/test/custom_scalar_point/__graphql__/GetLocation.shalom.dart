@@ -115,7 +115,7 @@ class GetLocationResponse{
         
     
         
-            final pointScalarImpl? coords;
+            final Point? coords;
         
     
     // keywordargs constructor
@@ -133,7 +133,7 @@ class GetLocationResponse{
         
     
         
-            final pointScalarImpl? coords_value = data['coords'];
+            final Point? coords_value = data['coords'];
         
     
     return GetLocation_getLocation(
@@ -158,7 +158,7 @@ class GetLocationResponse{
         
     
         
-            final pointScalarImpl? coords_value;
+            final Point? coords_value;
             if (data.containsKey('coords')) {
             coords_value = data['coords'];
             } else {

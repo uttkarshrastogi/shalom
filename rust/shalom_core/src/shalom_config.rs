@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Debug, Deserialize)]
 pub struct CostumeScalarDefinition {
@@ -9,5 +10,5 @@ pub struct CostumeScalarDefinition {
 
 #[derive(Debug, Deserialize)]
 pub struct ShalomConfig {
-    pub scalars: HashMap<String, ScalarMapping>,
+    pub scalars: HashMap<String, CostumeScalarDefinition>,
 }

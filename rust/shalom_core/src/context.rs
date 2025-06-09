@@ -1,12 +1,12 @@
-use crate::shalom_config::{ScalarMapping, ShalomConfig};
+use crate::shalom_config::{CostumeScalarDefinition, ShalomConfig};
+
+
 use std::{
     collections::HashMap,
     fs,
     sync::{Arc, Mutex},
 };
-
-use serde::Deserialize;
-
+use std::path::Path;
 use crate::{operation::context::SharedOpCtx, schema::context::SharedSchemaContext};
 
 #[derive(Debug)]
@@ -46,12 +46,14 @@ impl ShalomGlobalContext {
             .collect()
     }
 
-    pub fn find_scalar(&self, graphql_name: &str) -> Option<&ScalarMapping> {
-        self.config
-            .scalars
-            .iter()
-            .find(|s| s.graphql_name == graphql_name)
-    }
+pub fn find_scalar(&self, graphql_name: &str) -> Option<&CostumeScalarDefinition> {
+    self.config
+        .scalars
+        .iter()
+        .find(|(_, v)| v.graphql_name == graphql_name)
+        .map(|(_, v)| v)
+}
+
 
     pub fn operation_exists(&self, name: &str) -> bool {
         let operations = self.operations.lock().unwrap();
@@ -61,7 +63,11 @@ impl ShalomGlobalContext {
 
 pub type SharedShalomGlobalContext = Arc<ShalomGlobalContext>;
 
-pub fn load_config_from_yaml(path: &str) -> ShalomConfig {
-    let content = fs::read_to_string(path).expect("Failed to read shalom.yml");
-    serde_yaml::from_str(&content).expect("Failed to parse shalom.yml")
+pub fn load_config_from_yaml<P: AsRef<Path>>(path: P) -> anyhow::Result<ShalomConfig> {
+    let content = fs::read_to_string(&path)
+        .map_err(|e| anyhow::anyhow!("Failed to read {:?}: {}", path.as_ref(), e))?;
+    let config: ShalomConfig = serde_yaml::from_str(&content)
+        .map_err(|e| anyhow::anyhow!("Invalid YAML in {:?}: {}", path.as_ref(), e))?;
+    Ok(config)
 }
+

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 fn main() {
     // 👇 only run codegen for your Point scalar test folder
-    let test_path = PathBuf::from("rust/shalom_dart_codegen/dart_tests/test/custom_scalar_point/");
+    let test_path = PathBuf::from("shalom_dart_codegen/dart_tests/test/custom_scalar_point/");
 
     match codegen_entry_point(&test_path) {
         Ok(_) => println!("✅ Codegen succeeded for custom_scalar_point!"),
