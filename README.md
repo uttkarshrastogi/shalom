@@ -22,7 +22,7 @@
 - [ ] defer / stream
 - [ ] input
     - [x] scalar
-    - [x] object
+    - [ ] object
     - [ ] enum
     - [ ] oneOf
     - [ ] list of
