@@ -14,9 +14,9 @@ use shalom_core::{
 use std::{
     collections::HashMap,
     fs,
+    ops::Deref,
     path::{Path, PathBuf},
     rc::Rc,
-    ops::Deref,
 };
 
 struct TemplateEnv<'a> {
@@ -258,7 +258,6 @@ fn generate_schema_file(template_env: &TemplateEnv, path: &Path, schema_ctx: &Sc
     fs::write(&generation_target, rendered_content).unwrap();
     info!("Generated {}", generation_target.display());
 }
-
 
 pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
     info!("codegen started in working directory {}", pwd.display());

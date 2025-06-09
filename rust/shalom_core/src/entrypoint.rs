@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    context::{ShalomGlobalContext, SharedShalomGlobalContext, load_config_from_yaml}, // ✅ added config loader
+    context::{load_config_from_yaml, ShalomGlobalContext, SharedShalomGlobalContext}, // ✅ added config loader
     operation::context::SharedOpCtx,
     schema::{self, context::SharedSchemaContext},
 };
@@ -83,7 +83,10 @@ pub fn find_graphql_files(pwd: &Path) -> FoundGqlFiles {
     }
 
     if schema.is_none() {
-        println!("[ERROR] No schema.graphql or schema.gql file found in {:?}", pwd);
+        println!(
+            "[ERROR] No schema.graphql or schema.gql file found in {:?}",
+            pwd
+        );
         for file in &found_files {
             println!(" -> Candidate file: {}", file.display());
         }
@@ -95,8 +98,6 @@ pub fn find_graphql_files(pwd: &Path) -> FoundGqlFiles {
         operations,
     }
 }
-
-
 
 pub fn parse_schema(schema: &str) -> anyhow::Result<SharedSchemaContext> {
     schema::resolver::resolve(schema)

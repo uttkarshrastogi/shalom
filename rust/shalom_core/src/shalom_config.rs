@@ -9,5 +9,5 @@ pub struct CostumeScalarDefinition {
 
 #[derive(Debug, Deserialize)]
 pub struct ShalomConfig {
-  pub scalars: HashMap<String, ScalarMapping>,
+    pub scalars: HashMap<String, ScalarMapping>,
 }
