@@ -15,14 +15,14 @@ pub struct ShalomGlobalContext {
     operations: Mutex<HashMap<String, SharedOpCtx>>,
     pub schema_ctx: SharedSchemaContext,
     pub config: ShalomConfig,
-     // ✅ ADDED CONFIG FIELD
+
 }
 
 unsafe impl Send for ShalomGlobalContext {}
 unsafe impl Sync for ShalomGlobalContext {}
 
 impl ShalomGlobalContext {
-    // ✅ UPDATED: Accepts config in constructor
+
     pub fn new(schema_ctx: SharedSchemaContext, config: ShalomConfig) -> Arc<Self> {
         Arc::new(Self {
             operations: Mutex::new(HashMap::new()),
@@ -49,7 +49,7 @@ impl ShalomGlobalContext {
             .collect()
     }
 
-    // ✅ Custom scalar lookup
+
     pub fn find_scalar(&self, graphql_name: &str) -> Option<&ScalarMapping> {
         self.config
             .scalars
@@ -63,10 +63,8 @@ impl ShalomGlobalContext {
     }
 }
 
-// ✅ Type alias
 pub type SharedShalomGlobalContext = Arc<ShalomGlobalContext>;
 
-// ✅ YAML loader (you can call this in your entrypoint)
 pub fn load_config_from_yaml(path: &str) -> ShalomConfig {
     let content = fs::read_to_string(path).expect("Failed to read shalom.yml");
     serde_yaml::from_str(&content).expect("Failed to parse shalom.yml")
