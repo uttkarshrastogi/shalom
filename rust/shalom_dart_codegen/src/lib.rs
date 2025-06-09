@@ -58,19 +58,19 @@ mod ext_jinja_fns {
                     let mut resolved = mapping
                         .scalar_dart_type
                         .split('#')
-                        .last()
+                        .next_back()
                         .unwrap_or("dynamic")
                         .to_string();
                     if scalar.common.is_optional {
                         resolved.push('?');
                     }
-                    return resolved;
+                    resolved
                 } else {
                     let mut resolved = dart_type_for_scalar(scalar_name, ctx);
                     if scalar.common.is_optional {
                         resolved.push('?');
                     }
-                    return resolved;
+                    resolved
                 }
             }
 
@@ -104,7 +104,7 @@ mod ext_jinja_fns {
                     mapping
                         .scalar_dart_type
                         .split('#')
-                        .last()
+                        .next_back()
                         .unwrap_or("dynamic")
                         .to_string()
                 } else {
@@ -275,7 +275,7 @@ fn generate_schema_file(
 
 pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
     info!("codegen started in working directory {}", pwd.display());
-    let ctx = shalom_core::entrypoint::parse_directory(&pwd)?;
+    let ctx = shalom_core::entrypoint::parse_directory(pwd)?;
     let template_env = TemplateEnv::new(ctx.clone());
 
     let existing_op_names =
@@ -298,7 +298,7 @@ pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
         }
     }
 
-    generate_schema_file(&template_env, pwd, ctx.schema_ctx.deref());
+    generate_schema_file(&template_env, pwd, ctx.schema_ctx.deref())?;
     for (name, operation) in ctx.operations() {
         generate_operations_file(&template_env, &name, operation, ctx.schema_ctx.clone());
     }
