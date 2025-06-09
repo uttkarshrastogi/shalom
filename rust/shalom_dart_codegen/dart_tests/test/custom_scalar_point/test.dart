@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'lib/__graphql__/get_location.shalom.dart'; // auto-generated file
+import 'lib/__graphql__/GetLocation.shalom.dart'; // adjust the import if needed
 
 void main() {
   test('Point scalar is correctly generated and parsed', () {
@@ -18,8 +18,10 @@ void main() {
     );
 
     final location = result.data?.getLocation;
+
     expect(location, isNotNull);
-    expect(location!.coords.x, equals(12));
-    expect(location.coords.y, equals(34));
+    expect(location!.id, equals("123"));
+    expect(location.coords!.x, equals(12));
+    expect(location.coords!.y, equals(34));
   });
 }

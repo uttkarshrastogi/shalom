@@ -1,0 +1,4 @@
+scalars:
+  - graphql_name: Point
+    scalar_dart_type: pointScalarImpl
+    impl_path: lib/src/point.dart#pointScalarImpl
