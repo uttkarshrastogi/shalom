@@ -124,7 +124,7 @@ pub fn dart_type_for_scalar(scalar_name: &str, ctx: &SharedShalomGlobalContext) 
     }
 
     // Default fallback for known GraphQL scalars
-   fallback_scalar_type(scalar_name).to_string()
+    fallback_scalar_type(scalar_name).to_string()
 }
 pub fn fallback_scalar_type(graphql_name: &str) -> &'static str {
     match graphql_name {

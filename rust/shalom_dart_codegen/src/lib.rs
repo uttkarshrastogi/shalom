@@ -4,10 +4,10 @@ use log::{info, trace};
 use minijinja::{context, value::ViaDeserialize, Environment};
 use serde::Serialize;
 use shalom_core::{
-    context::{SharedShalomGlobalContext},
+    context::SharedShalomGlobalContext,
     operation::{
         context::OperationContext,
-        types::{Selection, dart_type_for_scalar},
+        types::{dart_type_for_scalar, Selection},
     },
     schema::{
         context::{SchemaContext, SharedSchemaContext},
@@ -52,27 +52,27 @@ mod ext_jinja_fns {
         selection: ViaDeserialize<Selection>,
     ) -> String {
         match selection.0 {
-           Selection::Scalar(scalar) => {
-               let scalar_name = &scalar.concrete_type.name;
-               if let Some(mapping) = ctx.find_scalar(scalar_name) {
-                   let mut resolved = mapping
-                       .scalar_dart_type
-                       .split('#')
-                       .last()
-                       .unwrap_or("dynamic")
-                       .to_string();
-                   if scalar.common.is_optional {
-                       resolved.push('?');
-                   }
-                   return resolved;
-               } else {
-                   let mut resolved = dart_type_for_scalar(scalar_name, ctx);
-                   if scalar.common.is_optional {
-                       resolved.push('?');
-                   }
-                   return resolved;
-               }
-           }
+            Selection::Scalar(scalar) => {
+                let scalar_name = &scalar.concrete_type.name;
+                if let Some(mapping) = ctx.find_scalar(scalar_name) {
+                    let mut resolved = mapping
+                        .scalar_dart_type
+                        .split('#')
+                        .last()
+                        .unwrap_or("dynamic")
+                        .to_string();
+                    if scalar.common.is_optional {
+                        resolved.push('?');
+                    }
+                    return resolved;
+                } else {
+                    let mut resolved = dart_type_for_scalar(scalar_name, ctx);
+                    if scalar.common.is_optional {
+                        resolved.push('?');
+                    }
+                    return resolved;
+                }
+            }
 
             Selection::Object(object) => {
                 if object.common.is_optional {
@@ -92,38 +92,37 @@ mod ext_jinja_fns {
     }
 
     #[allow(unused_variables)]
- pub fn type_name_for_field(
-     ctx: &SharedShalomGlobalContext,
-     input: ViaDeserialize<InputFieldDefinition>,
- ) -> String {
-     let ty_name = input.0.ty.name();
-     let ty = input.resolve_type(&ctx.schema_ctx);
-     let resolved = match ty {
-         GraphQLAny::Scalar(_) => {
-             if let Some(mapping) = ctx.find_scalar(&ty_name) {
-                 mapping
-                     .scalar_dart_type
-                     .split('#')
-                     .last()
-                     .unwrap_or("dynamic")
-                     .to_string()
-             } else {
-                 dart_type_for_scalar(&ty_name, ctx)
-             }
-         }
-         GraphQLAny::InputObject(_) => ty_name,
-         _ => unimplemented!("input type not supported"),
-     };
+    pub fn type_name_for_field(
+        ctx: &SharedShalomGlobalContext,
+        input: ViaDeserialize<InputFieldDefinition>,
+    ) -> String {
+        let ty_name = input.0.ty.name();
+        let ty = input.resolve_type(&ctx.schema_ctx);
+        let resolved = match ty {
+            GraphQLAny::Scalar(_) => {
+                if let Some(mapping) = ctx.find_scalar(&ty_name) {
+                    mapping
+                        .scalar_dart_type
+                        .split('#')
+                        .last()
+                        .unwrap_or("dynamic")
+                        .to_string()
+                } else {
+                    dart_type_for_scalar(&ty_name, ctx)
+                }
+            }
+            GraphQLAny::InputObject(_) => ty_name,
+            _ => unimplemented!("input type not supported"),
+        };
 
-     if input.is_optional && input.default_value.is_none() {
-         format!("Option<{}?>", resolved)
-     } else if input.is_optional {
-         format!("{}?", resolved)
-     } else {
-         resolved
-     }
- }
-
+        if input.is_optional && input.default_value.is_none() {
+            format!("Option<{}?>", resolved)
+        } else if input.is_optional {
+            format!("{}?", resolved)
+        } else {
+            resolved
+        }
+    }
 
     pub fn parse_field_default_value(input: ViaDeserialize<InputFieldDefinition>) -> String {
         input
@@ -187,11 +186,10 @@ impl TemplateEnv<'_> {
             ext_jinja_fns::type_name_for_selection(&ctx_clone, a)
         });
 
-       let ctx_clone = ctx.clone();
-       env.add_function("type_name_for_field", move |a: _| {
-           ext_jinja_fns::type_name_for_field(&ctx_clone, a)
-       });
-
+        let ctx_clone = ctx.clone();
+        env.add_function("type_name_for_field", move |a: _| {
+            ext_jinja_fns::type_name_for_field(&ctx_clone, a)
+        });
 
         let schema_ctx_clone = ctx.schema_ctx.clone();
         env.add_function("is_input_type", move |a: _| {
@@ -274,7 +272,6 @@ fn generate_schema_file(
     info!("Generated {}", generation_target.display());
     Ok(())
 }
-
 
 pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
     info!("codegen started in working directory {}", pwd.display());

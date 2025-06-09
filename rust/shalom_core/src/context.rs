@@ -1,13 +1,12 @@
 use crate::shalom_config::{CostumeScalarDefinition, ShalomConfig};
 
-
+use crate::{operation::context::SharedOpCtx, schema::context::SharedSchemaContext};
+use std::path::Path;
 use std::{
     collections::HashMap,
     fs,
     sync::{Arc, Mutex},
 };
-use std::path::Path;
-use crate::{operation::context::SharedOpCtx, schema::context::SharedSchemaContext};
 
 #[derive(Debug)]
 pub struct ShalomGlobalContext {
@@ -46,14 +45,13 @@ impl ShalomGlobalContext {
             .collect()
     }
 
-pub fn find_scalar(&self, graphql_name: &str) -> Option<&CostumeScalarDefinition> {
-    self.config
-        .scalars
-        .iter()
-        .find(|(_, v)| v.graphql_name == graphql_name)
-        .map(|(_, v)| v)
-}
-
+    pub fn find_scalar(&self, graphql_name: &str) -> Option<&CostumeScalarDefinition> {
+        self.config
+            .scalars
+            .iter()
+            .find(|(_, v)| v.graphql_name == graphql_name)
+            .map(|(_, v)| v)
+    }
 
     pub fn operation_exists(&self, name: &str) -> bool {
         let operations = self.operations.lock().unwrap();
@@ -70,4 +68,3 @@ pub fn load_config_from_yaml<P: AsRef<Path>>(path: P) -> anyhow::Result<ShalomCo
         .map_err(|e| anyhow::anyhow!("Invalid YAML in {:?}: {}", path.as_ref(), e))?;
     Ok(config)
 }
-

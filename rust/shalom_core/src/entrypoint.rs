@@ -78,8 +78,9 @@ pub fn parse_directory(pwd: &Path) -> anyhow::Result<SharedShalomGlobalContext> 
 
     // Correct relative path for config
     let config_path = pwd.join("shalom.yml");
-    let config = load_config_from_yaml(&config_path)
-        .map_err(|e| anyhow::anyhow!("Failed to load config at {}: {}", config_path.display(), e))?;
+    let config = load_config_from_yaml(&config_path).map_err(|e| {
+        anyhow::anyhow!("Failed to load config at {}: {}", config_path.display(), e)
+    })?;
 
     let global_ctx = ShalomGlobalContext::new(schema_parsed, config);
 
@@ -91,4 +92,3 @@ pub fn parse_directory(pwd: &Path) -> anyhow::Result<SharedShalomGlobalContext> 
 
     Ok(global_ctx)
 }
-
