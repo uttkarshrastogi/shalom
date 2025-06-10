@@ -129,11 +129,21 @@ class GetLocationResponse{
     static GetLocation_getLocation fromJson(JsonObject data) {
     
         
-            final String id_value = data['id'];
+            final String id_value;
+            
+                id_value = data['id'];
+            
+
         
     
         
-            final Point? coords_value = data['coords'];
+            final Point? coords_value;
+            
+                coords_value = data['coords'] == null
+                  ? null
+                  : customScalars['Point']!.deserialize(data['coords']);
+            
+
         
     
     return GetLocation_getLocation(

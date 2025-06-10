@@ -1,10 +1,8 @@
 use crate::shalom_config::{CostumeScalarDefinition, ShalomConfig};
 
 use crate::{operation::context::SharedOpCtx, schema::context::SharedSchemaContext};
-use std::path::Path;
 use std::{
     collections::HashMap,
-    fs,
     sync::{Arc, Mutex},
 };
 
@@ -61,10 +59,14 @@ impl ShalomGlobalContext {
 
 pub type SharedShalomGlobalContext = Arc<ShalomGlobalContext>;
 
-pub fn load_config_from_yaml<P: AsRef<Path>>(path: P) -> anyhow::Result<ShalomConfig> {
-    let content = fs::read_to_string(&path)
-        .map_err(|e| anyhow::anyhow!("Failed to read {:?}: {}", path.as_ref(), e))?;
-    let config: ShalomConfig = serde_yaml::from_str(&content)
-        .map_err(|e| anyhow::anyhow!("Invalid YAML in {:?}: {}", path.as_ref(), e))?;
+pub fn load_config_from_yaml_str(yaml: &str) -> anyhow::Result<ShalomConfig> {
+    let config: ShalomConfig =
+        serde_yaml::from_str(yaml).map_err(|e| anyhow::anyhow!("Invalid YAML: {}", e))?;
     Ok(config)
+}
+
+pub fn default_config() -> ShalomConfig {
+    ShalomConfig {
+        scalars: Default::default(),
+    }
 }

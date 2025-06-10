@@ -118,7 +118,7 @@ pub fn dart_type_for_scalar(scalar_name: &str, ctx: &SharedShalomGlobalContext) 
         return mapping
             .scalar_dart_type
             .split('#')
-            .last()
+            .next_back()
             .unwrap_or("dynamic")
             .to_string();
     }

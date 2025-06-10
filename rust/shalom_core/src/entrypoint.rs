@@ -1,11 +1,14 @@
 use std::{
     collections::HashMap,
     fs,
+    io::ErrorKind,
     path::{Path, PathBuf},
 };
 
 use crate::{
-    context::{load_config_from_yaml, ShalomGlobalContext, SharedShalomGlobalContext},
+    context::{
+        default_config, load_config_from_yaml_str, ShalomGlobalContext, SharedShalomGlobalContext,
+    },
     operation::context::SharedOpCtx,
     schema::{self, context::SharedSchemaContext},
 };
@@ -76,11 +79,25 @@ pub fn parse_directory(pwd: &Path) -> anyhow::Result<SharedShalomGlobalContext> 
     let schema_raw = fs::read_to_string(&files.schema)?;
     let schema_parsed = parse_schema(&schema_raw)?;
 
-    // Correct relative path for config
     let config_path = pwd.join("shalom.yml");
-    let config = load_config_from_yaml(&config_path).map_err(|e| {
-        anyhow::anyhow!("Failed to load config at {}: {}", config_path.display(), e)
-    })?;
+
+    let config = match fs::read_to_string(&config_path) {
+        Ok(yaml) => load_config_from_yaml_str(&yaml)?,
+        Err(e) if e.kind() == ErrorKind::NotFound => {
+            println!(
+                "⚠️  No shalom.yml found in {}. Using default config.",
+                config_path.display()
+            );
+            default_config()
+        }
+        Err(e) => {
+            return Err(anyhow::anyhow!(
+                "Failed to read config at {}: {}",
+                config_path.display(),
+                e
+            ))
+        }
+    };
 
     let global_ctx = ShalomGlobalContext::new(schema_parsed, config);
 

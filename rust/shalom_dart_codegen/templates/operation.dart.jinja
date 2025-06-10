@@ -42,7 +42,15 @@ import 'package:shalom_core/shalom_core.dart';
                 {{ selection_name }}_value = {{ selection.full_name }}.fromJson(data['{{ selection_name }}']);            
             {% endif %}
         {% elif selection.kind == "Scalar" %}
-            final {{ type_name_for_selection(selection) }} {{ selection_name }}_value = data['{{ selection_name }}'];
+            final {{ type_name_for_selection(selection) }} {{ selection_name }}_value;
+            {% if selection.concrete_type.name in ["String", "Boolean", "Int", "Float", "ID"] %}
+                {{ selection_name }}_value = data['{{ selection_name }}'];
+            {% else %}
+                {{ selection_name }}_value = data['{{ selection_name }}'] == null
+                  ? null
+                  : customScalars['{{ selection.concrete_type.name }}']!.deserialize(data['{{ selection_name }}']);
+            {% endif %}
+
         {% elif selection.kind == "Enum" %}
             {% set typename = selection.concrete_type.name %}
             final {{ type_name_for_selection(selection) }} {{ selection_name }}_value;

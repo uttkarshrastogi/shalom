@@ -1,9 +1,8 @@
 // lib/src/point.dart
 
-// If your CostumScalarImpl is in another file, import it.
 // Adjust path if scalar.dart is elsewhere
 
-import '../scaler.dart';
+import '../scalar.dart';
 
 class Point {
   final int x;
@@ -18,10 +17,20 @@ class Point {
 class _PointScalarImpl implements CustomScalarImpl<Point> {
   @override
   Point deserialize(dynamic raw) {
-    // Expects format like: "POINT (12, 34)"
+    if (raw is Map<String, dynamic>) {
+      // Handles object-like: { "x": 12, "y": 34 }
+      return Point(x: raw['x'], y: raw['y']);
+    }
+
+    if (raw is! String) {
+      throw FormatException("Expected String or Map for Point, got ${raw.runtimeType}");
+    }
+
+    // Handles string-like: "POINT (12, 34)"
     final regex = RegExp(r'POINT\s*\((\d+),\s*(\d+)\)');
-    final match = regex.firstMatch(raw.toString());
+    final match = regex.firstMatch(raw);
     if (match == null) throw FormatException("Invalid POINT format: $raw");
+
     return Point(x: int.parse(match[1]!), y: int.parse(match[2]!));
   }
 

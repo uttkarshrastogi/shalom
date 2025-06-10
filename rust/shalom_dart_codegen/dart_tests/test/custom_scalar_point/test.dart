@@ -1,20 +1,22 @@
+import 'package:shalom_core/shalom_core.dart';
 import 'package:test/test.dart';
-import 'lib/__graphql__/GetLocation.shalom.dart'; // adjust the import if needed
+
+import '__graphql__/GetLocation.shalom.dart';
 
 void main() {
   test('Point scalar is correctly generated and parsed', () {
+    // Register the scalar handler
+    customScalars['Point'] = pointScalarImpl;
+
     final responseJson = {
       "data": {
-        "getLocation": {
-          "id": "123",
-          "coords": "POINT (12, 34)"
-        }
-      }
+        "getLocation": {"id": "123", "coords": "POINT (12, 34)"},
+      },
     };
 
-    final result = GraphQLResult<GetLocation$Query$Response>.fromJson(
+    final result = GraphQLResult<GetLocationResponse>.fromJson(
       responseJson,
-          (json) => GetLocation$Query$Response.fromJson(json),
+      (json) => GetLocationResponse.fromJson(json),
     );
 
     final location = result.data?.getLocation;
