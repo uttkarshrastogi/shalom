@@ -23,7 +23,9 @@ class _PointScalarImpl implements CustomScalarImpl<Point> {
     }
 
     if (raw is! String) {
-      throw FormatException("Expected String or Map for Point, got ${raw.runtimeType}");
+      throw FormatException(
+        "Expected String or Map for Point, got ${raw.runtimeType}",
+      );
     }
 
     // Handles string-like: "POINT (12, 34)"
