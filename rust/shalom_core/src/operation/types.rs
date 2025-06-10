@@ -112,7 +112,7 @@ impl EnumSelection {
 }
 
 pub fn dart_type_for_scalar(scalar_name: &str, ctx: &SharedShalomGlobalContext) -> String {
-    if let Some(mapping) = ctx.find_scalar(scalar_name) {
+    if let Some(mapping) = ctx.find_custom_scalar(scalar_name) {
         // Example: "lib/src/point.dart#Point"
         // Just extract the type name after '#'
         return mapping

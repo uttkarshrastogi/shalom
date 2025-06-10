@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer};
 use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Debug, Deserialize)]
-pub struct CostumeScalarDefinition {
+pub struct CustomScalarDefinition {
     pub graphql_name: String,
     pub scalar_dart_type: String,
 
@@ -12,7 +12,7 @@ pub struct CostumeScalarDefinition {
 
 #[derive(Debug, Deserialize)]
 pub struct ShalomConfig {
-    pub scalars: HashMap<String, CostumeScalarDefinition>,
+    pub custom_scalars: HashMap<String, CustomScalarDefinition>,
 }
 
 /// Custom deserializer to treat YAML list as tuple

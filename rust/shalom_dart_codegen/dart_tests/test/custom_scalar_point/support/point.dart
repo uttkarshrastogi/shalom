@@ -1,8 +1,4 @@
-// lib/src/point.dart
-
-// Adjust path if scalar.dart is elsewhere
-
-import '../scalar.dart';
+import 'package:shalom_core/shalom_core.dart';
 
 class Point {
   final int x;
@@ -23,7 +19,9 @@ class _PointScalarImpl implements CustomScalarImpl<Point> {
     }
 
     if (raw is! String) {
-      throw FormatException("Expected String or Map for Point, got ${raw.runtimeType}");
+      throw FormatException(
+        "Expected String or Map for Point, got ${raw.runtimeType}",
+      );
     }
 
     // Handles string-like: "POINT (12, 34)"

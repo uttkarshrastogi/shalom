@@ -54,24 +54,33 @@ mod ext_jinja_fns {
         match selection.0 {
             Selection::Scalar(scalar) => {
                 let scalar_name = &scalar.concrete_type.name;
-                if let Some(mapping) = ctx.find_scalar(scalar_name) {
-                    let mut resolved = mapping
+
+                // Handle built-in scalars (e.g. String, Int)
+                if scalar.concrete_type.is_built_in() {
+                    let mut resolved = dart_type_for_scalar(scalar_name, ctx);
+                    if scalar.common.is_optional {
+                        resolved.push('?');
+                    }
+                    return resolved;
+                }
+
+                // Handle custom scalars defined in shalom.yml
+                if let Some(custom_scalar_def) = ctx.config.custom_scalars.get(scalar_name) {
+                    let mut resolved = custom_scalar_def
                         .scalar_dart_type
                         .split('#')
                         .next_back()
                         .unwrap_or("dynamic")
                         .to_string();
+
                     if scalar.common.is_optional {
                         resolved.push('?');
                     }
-                    resolved
-                } else {
-                    let mut resolved = dart_type_for_scalar(scalar_name, ctx);
-                    if scalar.common.is_optional {
-                        resolved.push('?');
-                    }
-                    resolved
+                    return resolved;
                 }
+
+                // Fallback for unknown scalars
+                "dynamic".to_string()
             }
 
             Selection::Object(object) => {
@@ -100,7 +109,7 @@ mod ext_jinja_fns {
         let ty = input.resolve_type(&ctx.schema_ctx);
         let resolved = match ty {
             GraphQLAny::Scalar(_) => {
-                if let Some(mapping) = ctx.find_scalar(&ty_name) {
+                if let Some(mapping) = ctx.find_custom_scalar(&ty_name) {
                     mapping
                         .scalar_dart_type
                         .split('#')

@@ -1,6 +1,4 @@
 // Export scalar infra
-export 'scalar.dart';          // ✅ now it will resolve
-export 'example/point.dart';   // ✅ gives access to Point and pointScalarImpl
 
 typedef JsonObject = Map<String, dynamic>;
 

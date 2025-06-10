@@ -1,4 +1,4 @@
-use crate::shalom_config::{CostumeScalarDefinition, ShalomConfig};
+use crate::shalom_config::{CustomScalarDefinition, ShalomConfig};
 
 use crate::{operation::context::SharedOpCtx, schema::context::SharedSchemaContext};
 use std::{
@@ -43,9 +43,9 @@ impl ShalomGlobalContext {
             .collect()
     }
 
-    pub fn find_scalar(&self, graphql_name: &str) -> Option<&CostumeScalarDefinition> {
+    pub fn find_custom_scalar(&self, graphql_name: &str) -> Option<&CustomScalarDefinition> {
         self.config
-            .scalars
+            .custom_scalars
             .iter()
             .find(|(_, v)| v.graphql_name == graphql_name)
             .map(|(_, v)| v)
@@ -67,6 +67,6 @@ pub fn load_config_from_yaml_str(yaml: &str) -> anyhow::Result<ShalomConfig> {
 
 pub fn default_config() -> ShalomConfig {
     ShalomConfig {
-        scalars: Default::default(),
+        custom_scalars: Default::default(),
     }
 }
