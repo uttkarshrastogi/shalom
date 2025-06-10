@@ -1,6 +1,6 @@
 // Export scalar infra
-export 'scalar.dart';          // ✅ now it will resolve
-export 'example/point.dart';   // ✅ gives access to Point and pointScalarImpl
+export 'scalar.dart'; // ✅ now it will resolve
+export 'example/point.dart'; // ✅ gives access to Point and pointScalarImpl
 
 typedef JsonObject = Map<String, dynamic>;
 
@@ -11,16 +11,17 @@ class GraphQLResult<T> {
   GraphQLResult._({this.data, this.errors});
 
   factory GraphQLResult.fromJson(
-      JsonObject json,
-      T Function(JsonObject) fromJson,
-      ) {
+    JsonObject json,
+    T Function(JsonObject) fromJson,
+  ) {
     return GraphQLResult._(
       data: json['data'] != null ? fromJson(json['data']) : null,
-      errors: json['errors'] != null
-          ? (json['errors'] as List)
-          .map((e) => (e as List).map((e) => e as JsonObject).toList())
-          .toList()
-          : null,
+      errors:
+          json['errors'] != null
+              ? (json['errors'] as List)
+                  .map((e) => (e as List).map((e) => e as JsonObject).toList())
+                  .toList()
+              : null,
     );
   }
 }
