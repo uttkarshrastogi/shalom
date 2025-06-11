@@ -6,7 +6,6 @@ abstract class CustomScalarImpl<T> {
 // Global registry to hold custom scalar implementations
 final Map<String, CustomScalarImpl<dynamic>> customScalars = {};
 
-
 class Point {
   final int x;
   final int y;
