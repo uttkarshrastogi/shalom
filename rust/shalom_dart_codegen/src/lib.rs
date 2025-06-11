@@ -25,6 +25,7 @@ use std::{
 
 struct TemplateEnv<'a> {
     env: Environment<'a>,
+    extra_imports: Vec<String>,
 }
 
 lazy_static! {
@@ -54,33 +55,24 @@ mod ext_jinja_fns {
         match selection.0 {
             Selection::Scalar(scalar) => {
                 let scalar_name = &scalar.concrete_type.name;
-
-                // Handle built-in scalars (e.g. String, Int)
-                if scalar.concrete_type.is_built_in() {
-                    let mut resolved = dart_type_for_scalar(scalar_name, ctx);
-                    if scalar.common.is_optional {
-                        resolved.push('?');
-                    }
-                    return resolved;
-                }
-
-                // Handle custom scalars defined in shalom.yml
-                if let Some(custom_scalar_def) = ctx.config.custom_scalars.get(scalar_name) {
-                    let mut resolved = custom_scalar_def
+                if let Some(mapping) = ctx.find_custom_scalar(scalar_name) {
+                    let mut resolved = mapping
                         .scalar_dart_type
                         .split('#')
                         .next_back()
                         .unwrap_or("dynamic")
                         .to_string();
-
                     if scalar.common.is_optional {
                         resolved.push('?');
                     }
-                    return resolved;
+                    resolved
+                } else {
+                    let mut resolved = dart_type_for_scalar(scalar_name, ctx);
+                    if scalar.common.is_optional {
+                        resolved.push('?');
+                    }
+                    resolved
                 }
-
-                // Fallback for unknown scalars
-                "dynamic".to_string()
             }
 
             Selection::Object(object) => {
@@ -213,7 +205,15 @@ impl TemplateEnv<'_> {
         env.add_function("value_or_last", ext_jinja_fns::value_or_last);
         env.add_filter("if_not_last", ext_jinja_fns::if_not_last);
 
-        Self { env }
+        // 🧠 Pre-compute extra imports
+        let extra_imports = ctx
+            .config
+            .custom_scalars
+            .values()
+            .map(|def| def.impl_symbol.0.display().to_string())
+            .collect();
+
+        Self { env, extra_imports }
     }
 
     fn render_operation<S: Serialize, T: Serialize>(
@@ -223,16 +223,41 @@ impl TemplateEnv<'_> {
     ) -> String {
         let template = self.env.get_template("operation").unwrap();
         let mut context = HashMap::new();
-        context.insert("schema", context! {context => schema_ctx});
-        context.insert("operation", context! {context => operations_ctx});
-        trace!("resolved operation template; rendering...");
+
+        context.insert("schema", context! { context => schema_ctx });
+        context.insert("operation", context! { context => operations_ctx });
+
+        // ✅ Inject extra imports
+        context.insert(
+            "extra_imports",
+            context! { context => self.extra_imports.clone() },
+        );
+
         template.render(&context).unwrap()
     }
 
-    fn render_schema<T: Serialize>(&self, schema_ctx: T) -> String {
+    fn render_schema<T: Serialize>(
+        &self,
+        ctx: &SharedShalomGlobalContext,
+        schema_ctx: T,
+    ) -> String {
         let template = self.env.get_template("schema").unwrap();
         let mut context = HashMap::new();
-        context.insert("schema", context! {context => schema_ctx});
+
+        // ✅ Inject schema
+        context.insert("schema", context! { context => schema_ctx });
+
+        // ✅ Inject extra_imports (custom scalar imports)
+        let extra_imports: Vec<String> = ctx
+            .config
+            .custom_scalars
+            .values()
+            .map(|def| format!("import '{}';", def.impl_symbol.0.display()))
+            .collect();
+
+        context.insert("extra_imports", context! { context => extra_imports });
+        dbg!("debug this");
+        dbg!(&extra_imports);
         trace!("resolved schema template; rendering...");
         template.render(&context).unwrap()
     }
@@ -269,11 +294,12 @@ fn generate_operations_file(
 
 fn generate_schema_file(
     template_env: &TemplateEnv,
+    ctx: &SharedShalomGlobalContext,
     path: &Path,
     schema_ctx: &SchemaContext,
 ) -> std::io::Result<()> {
     info!("rendering schema file");
-    let rendered_content = template_env.render_schema(schema_ctx);
+    let rendered_content = template_env.render_schema(ctx, schema_ctx);
     let output_dir = path.join(GRAPHQL_DIRECTORY);
     create_dir_if_not_exists(&output_dir); // ✅ Ensure folder exists
     let generation_target = output_dir.join(format!("schema.{}", END_OF_FILE));
@@ -307,7 +333,7 @@ pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
         }
     }
 
-    generate_schema_file(&template_env, pwd, ctx.schema_ctx.deref())?;
+    generate_schema_file(&template_env, &ctx, pwd, ctx.schema_ctx.deref())?;
     for (name, operation) in ctx.operations() {
         generate_operations_file(&template_env, &name, operation, ctx.schema_ctx.clone());
     }

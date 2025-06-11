@@ -2,8 +2,7 @@ custom_scalars:
   Point:
     graphql_name: Point
     scalar_dart_type: Point
-    import: '../support/point.dart'
-    impl_symbol: ['../support/point.dart', pointScalarImpl]
+    impl_symbol: [point.dart,pointScalarImpl]
 
   DateTime:
     graphql_name: DateTime

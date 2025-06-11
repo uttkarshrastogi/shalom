@@ -1,7 +1,6 @@
 import 'package:shalom_core/shalom_core.dart';
 import 'package:test/test.dart';
 import '__graphql__/GetLocation.shalom.dart';
-import 'support/point.dart';
 
 void main() {
   test('Point scalar is correctly generated and parsed', () {
