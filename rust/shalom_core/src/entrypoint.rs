@@ -19,46 +19,31 @@ pub struct FoundGqlFiles {
 }
 
 pub fn find_graphql_files(pwd: &Path) -> FoundGqlFiles {
-    let graphql_glob = pwd.join("**/*.graphql").to_str().unwrap().to_string();
-    let gql_glob = pwd.join("**/*.gql").to_str().unwrap().to_string();
-
     let mut found_files = vec![];
-
     found_files.extend(
-        glob::glob(&graphql_glob)
-            .expect("Invalid glob pattern for .graphql")
-            .filter_map(Result::ok),
+        glob::glob(pwd.join("**/*.graphql").to_str().unwrap())
+            .into_iter()
+            .flatten(),
     );
-
     found_files.extend(
-        glob::glob(&gql_glob)
-            .expect("Invalid glob pattern for .gql")
-            .filter_map(Result::ok),
+        glob::glob(pwd.join("**/*.gql").to_str().unwrap())
+            .into_iter()
+            .flatten(),
     );
-
     let mut schema = None;
     let mut operations = vec![];
-
-    for file in &found_files {
+    for file in found_files {
+        let file = file.unwrap();
         let f_name = file.file_name().unwrap().to_str().unwrap();
         if f_name.contains("schema.graphql") || f_name.contains("schema.gql") {
-            schema = Some(file.clone());
+            schema = Some(file);
         } else {
-            operations.push(file.clone());
+            operations.push(file);
         }
     }
-
-    if let Some(schema) = schema {
-        FoundGqlFiles { schema, operations }
-    } else {
-        let mut msg = format!(
-            "No schema.graphql or schema.gql file found in directory: {}",
-            pwd.display()
-        );
-        for file in &found_files {
-            msg.push_str(&format!("\n -> Candidate file: {}", file.display()));
-        }
-        panic!("{}", msg);
+    FoundGqlFiles {
+        schema: schema.expect("No schema.graphql file found"),
+        operations,
     }
 }
 

@@ -1,5 +1,7 @@
 import 'package:shalom_core/shalom_core.dart';
 
+import '../point.dart';
+
 typedef JsonObject = Map<String, dynamic>;
 // ignore_for_file: non_constant_identifier_names
 // ignore_for_file: camel_case_types
@@ -90,7 +92,10 @@ class GetLocation_getLocation {
 
     final Point? coords_value;
     if (data.containsKey('coords')) {
-      coords_value = data['coords'];
+      coords_value =
+          data['coords'] == null
+              ? null
+              : customScalars['Point']!.deserialize(data['coords']);
     } else {
       coords_value = coords;
     }
@@ -110,7 +115,12 @@ class GetLocation_getLocation {
   int get hashCode => Object.hashAll([id, coords]);
 
   JsonObject toJson() {
-    return {'id': id, 'coords': coords};
+    return {
+      'id': id,
+
+      'coords':
+          coords == null ? null : customScalars['Point']!.serialize(coords),
+    };
   }
 }
 

@@ -110,11 +110,8 @@ impl EnumSelection {
         })
     }
 }
-
 pub fn dart_type_for_scalar(scalar_name: &str, ctx: &SharedShalomGlobalContext) -> String {
     if let Some(mapping) = ctx.find_custom_scalar(scalar_name) {
-        // Example: "lib/src/point.dart#Point"
-        // Just extract the type name after '#'
         return mapping
             .scalar_dart_type
             .split('#')
@@ -123,15 +120,11 @@ pub fn dart_type_for_scalar(scalar_name: &str, ctx: &SharedShalomGlobalContext) 
             .to_string();
     }
 
-    // Default fallback for known GraphQL scalars
-    fallback_scalar_type(scalar_name).to_string()
-}
-pub fn fallback_scalar_type(graphql_name: &str) -> &'static str {
-    match graphql_name {
-        "String" | "ID" => "String",
-        "Int" => "int",
-        "Float" => "double",
-        "Boolean" => "bool",
-        _ => "dynamic",
+    match scalar_name {
+        "String" | "ID" => "String".to_string(),
+        "Int" => "int".to_string(),
+        "Float" => "double".to_string(),
+        "Boolean" => "bool".to_string(),
+        _ => "dynamic".to_string(),
     }
 }

@@ -210,7 +210,7 @@ impl TemplateEnv<'_> {
             .config
             .custom_scalars
             .values()
-            .map(|def| def.impl_symbol.0.display().to_string())
+            .map(|def| def.impl_symbol.import_path.display().to_string())
             .collect();
 
         Self { env, extra_imports }
@@ -227,11 +227,7 @@ impl TemplateEnv<'_> {
         context.insert("schema", context! { context => schema_ctx });
         context.insert("operation", context! { context => operations_ctx });
 
-        // ✅ Inject extra imports
-        context.insert(
-            "extra_imports",
-            context! { context => self.extra_imports.clone() },
-        );
+        context.insert("extra_imports", self.extra_imports.clone().into());
 
         template.render(&context).unwrap()
     }
@@ -244,18 +240,17 @@ impl TemplateEnv<'_> {
         let template = self.env.get_template("schema").unwrap();
         let mut context = HashMap::new();
 
-        // ✅ Inject schema
         context.insert("schema", context! { context => schema_ctx });
 
-        // ✅ Inject extra_imports (custom scalar imports)
         let extra_imports: Vec<String> = ctx
             .config
             .custom_scalars
             .values()
-            .map(|def| format!("import '{}';", def.impl_symbol.0.display()))
+            .map(|def| format!("import '{}';", def.impl_symbol.import_path.display()))
             .collect();
 
-        context.insert("extra_imports", context! { context => extra_imports });
+        context.insert("extra_imports", self.extra_imports.clone().into());
+
         dbg!("debug this");
         dbg!(&extra_imports);
         trace!("resolved schema template; rendering...");
@@ -301,7 +296,7 @@ fn generate_schema_file(
     info!("rendering schema file");
     let rendered_content = template_env.render_schema(ctx, schema_ctx);
     let output_dir = path.join(GRAPHQL_DIRECTORY);
-    create_dir_if_not_exists(&output_dir); // ✅ Ensure folder exists
+    create_dir_if_not_exists(&output_dir);
     let generation_target = output_dir.join(format!("schema.{}", END_OF_FILE));
     fs::write(&generation_target, rendered_content)?;
     info!("Generated {}", generation_target.display());

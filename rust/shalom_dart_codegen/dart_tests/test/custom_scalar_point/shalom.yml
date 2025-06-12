@@ -1,10 +1,7 @@
 custom_scalars:
   Point:
-    graphql_name: Point
-    scalar_dart_type: Point
-    impl_symbol: [point.dart,pointScalarImpl]
-
-  DateTime:
-    graphql_name: DateTime
-    scalar_dart_type: DateTime
-    impl_symbol: [lib/src/date_time.dart, dateTimeScalarImpl]
+    graphql_name: "Point"
+    scalar_dart_type: "Point"
+    impl_symbol:
+      import_path: "import '../point.dart';"
+      symbol_name: "Point"
