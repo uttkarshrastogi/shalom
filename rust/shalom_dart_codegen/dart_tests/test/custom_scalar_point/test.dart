@@ -8,7 +8,7 @@ void main() {
     customScalars['Point'] = pointScalarImpl;
   });
 
-  test('✅ required field works (id)', () {
+  test(' required field works (id)', () {
     final responseJson = {
       "data": {
         "getLocation": {"id": "required-1", "coords": null},
@@ -25,14 +25,14 @@ void main() {
     expect(location.coords, isNull); // optional
   });
 
-  test('✅ optional field (coords) is null-safe', () {
+  test(' optional field (coords) is null-safe', () {
     final json = {"id": "has-no-coords", "coords": null};
 
     final location = GetLocation_getLocation.fromJson(json);
     expect(location.coords, isNull);
   });
 
-  test('✅ optional field with scalar value', () {
+  test(' optional field with scalar value', () {
     final json = {"id": "has-coords", "coords": "POINT (45, 67)"};
 
     final location = GetLocation_getLocation.fromJson(json);
@@ -40,7 +40,7 @@ void main() {
     expect(location.coords!.y, equals(67));
   });
 
-  test('✅ updateWith replaces provided fields', () {
+  test(' updateWith replaces provided fields', () {
     final original = GetLocation_getLocation(
       id: "orig-id",
       coords: Point(x: 10, y: 20),
@@ -56,7 +56,7 @@ void main() {
     expect(updated.coords!.y, equals(88));
   });
 
-  test('✅ updateWithJson keeps previous values if not present in input', () {
+  test(' updateWithJson keeps previous values if not present in input', () {
     final original = GetLocation_getLocation(
       id: "sticky-id",
       coords: Point(x: 11, y: 22),
@@ -69,7 +69,7 @@ void main() {
     expect(updated.coords!.y, equals(22));
   });
 
-  // test('✅ optional with default (if you support defaults)', () {
+  // test(' optional with default (if you support defaults)', () {
   //   // Assuming schema says something like coords: Point = "POINT (0, 0)"
   //   final json = {
   //     "id": "has-default",

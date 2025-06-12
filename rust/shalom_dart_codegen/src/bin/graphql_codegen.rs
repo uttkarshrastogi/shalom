@@ -6,7 +6,7 @@ fn main() {
     let test_path = PathBuf::from("shalom_dart_codegen/dart_tests/test/custom_scalar_point/");
 
     match codegen_entry_point(&test_path) {
-        Ok(_) => println!("✅ Codegen succeeded for custom_scalar_point!"),
+        Ok(_) => println!("Codegen succeeded for custom_scalar_point!"),
         Err(e) => eprintln!("❌ Codegen failed: {:?}", e),
     }
 }
