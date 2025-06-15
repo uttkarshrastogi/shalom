@@ -1,5 +1,3 @@
-// Export scalar infra
-
 typedef JsonObject = Map<String, dynamic>;
 
 class GraphQLResult<T> {

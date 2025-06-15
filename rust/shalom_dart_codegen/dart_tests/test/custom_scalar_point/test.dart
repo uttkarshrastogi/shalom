@@ -1,85 +1,139 @@
-import 'package:shalom_core/shalom_core.dart';
 import 'package:test/test.dart';
 import '__graphql__/GetLocation.shalom.dart';
 import 'point.dart';
 
 void main() {
+  final point = Point(x: 10, y: 20);
+  final pointRaw = "POINT (10, 20)";
+
   setUpAll(() {
     customScalars['Point'] = pointScalarImpl;
   });
 
-  test(' required field works (id)', () {
-    final responseJson = {
-      "data": {
-        "getLocation": {"id": "required-1", "coords": null},
-      },
-    };
+  group('GetLocation_getLocation fromJson', () {
+    test('deserializes with required and maybe fields', () {
+      final result = GetLocation_getLocation.fromJson({
+        'id': 'test-id-1',
+        'coords': pointRaw,
+      });
 
-    final result = GraphQLResult<GetLocationResponse>.fromJson(
-      responseJson,
-      (json) => GetLocationResponse.fromJson(json),
-    );
-
-    final location = result.data!.getLocation!;
-    expect(location.id, equals("required-1"));
-    expect(location.coords, isNull); // optional
-  });
-
-  test(' optional field (coords) is null-safe', () {
-    final json = {"id": "has-no-coords", "coords": null};
-
-    final location = GetLocation_getLocation.fromJson(json);
-    expect(location.coords, isNull);
-  });
-
-  test(' optional field with scalar value', () {
-    final json = {"id": "has-coords", "coords": "POINT (45, 67)"};
-
-    final location = GetLocation_getLocation.fromJson(json);
-    expect(location.coords!.x, equals(45));
-    expect(location.coords!.y, equals(67));
-  });
-
-  test(' updateWith replaces provided fields', () {
-    final original = GetLocation_getLocation(
-      id: "orig-id",
-      coords: Point(x: 10, y: 20),
-    );
-
-    final updated = original.updateWithJson({
-      "id": "updated-id",
-      "coords": "POINT (99, 88)",
+      expect(result.id, 'test-id-1');
+      expect(result.coords, isA<Point>());
+      expect(result.coords?.x, point.x);
+      expect(result.coords?.y, point.y);
     });
 
-    expect(updated.id, equals("updated-id"));
-    expect(updated.coords!.x, equals(99));
-    expect(updated.coords!.y, equals(88));
+    test('deserializes with maybe field as null', () {
+      final result = GetLocation_getLocation.fromJson({
+        'id': 'test-id-2',
+        'coords': null,
+      });
+
+      expect(result.id, 'test-id-2');
+      expect(result.coords, isNull);
+    });
   });
 
-  test(' updateWithJson keeps previous values if not present in input', () {
-    final original = GetLocation_getLocation(
-      id: "sticky-id",
-      coords: Point(x: 11, y: 22),
+  group('GetLocation_getLocation toJson', () {
+    test('serializes with required and maybe fields', () {
+      final data = GetLocation_getLocation(id: 'test-id-1', coords: point);
+      final json = data.toJson();
+
+      expect(json, {'id': 'test-id-1', 'coords': pointRaw});
+    });
+
+    test('serializes with maybe field as null', () {
+      final data = GetLocation_getLocation(id: 'test-id-2', coords: null);
+      final json = data.toJson();
+
+      expect(json, {'id': 'test-id-2', 'coords': null});
+    });
+  });
+
+  group('GetLocation_getLocation updateWithJson', () {
+    final initial = GetLocation_getLocation(id: 'initial-id', coords: point);
+
+    test('updates only maybe field', () {
+      final updatedPoint = Point(x: 30, y: 40);
+      final updatedPointRaw = "POINT (30,40)";
+      final updated = initial.updateWithJson({'coords': updatedPointRaw});
+
+      expect(updated.id, 'initial-id');
+      expect(updated.coords?.x, updatedPoint.x);
+      expect(initial, isNot(updated));
+    });
+
+    test('updates maybe field to null', () {
+      final updated = initial.updateWithJson({'coords': null});
+      expect(updated.coords, isNull);
+      expect(initial, isNot(updated));
+    });
+
+    test('updates only required field', () {
+      final updated = initial.updateWithJson({'id': 'updated-id'});
+
+      expect(updated.id, 'updated-id');
+      expect(updated.coords?.x, point.x);
+      expect(initial, isNot(updated));
+    });
+  });
+
+  group('GetLocationResponse fromJson', () {
+    test('deserializes with data', () {
+      final response = GetLocationResponse.fromJson({
+        'getLocation': {'id': 'test-id-1', 'coords': pointRaw},
+      });
+      expect(response.getLocation, isNotNull);
+      expect(response.getLocation?.id, 'test-id-1');
+      expect(response.getLocation?.coords?.x, point.x);
+    });
+
+    test('deserializes with null data', () {
+      final response = GetLocationResponse.fromJson({'getLocation': null});
+      expect(response.getLocation, isNull);
+    });
+  });
+
+  group('GetLocationResponse toJson', () {
+    test('serializes with data', () {
+      final data = GetLocationResponse(
+        getLocation: GetLocation_getLocation(id: 'test-id-1', coords: point),
+      );
+      final json = data.toJson();
+
+      expect(json, {
+        'getLocation': {'id': 'test-id-1', 'coords': pointRaw},
+      });
+    });
+
+    test('serializes with null data', () {
+      final data = GetLocationResponse(getLocation: null);
+      final json = data.toJson();
+
+      expect(json, {'getLocation': null});
+    });
+  });
+
+  group('GetLocationResponse updateWithJson', () {
+    final initial = GetLocationResponse(
+      getLocation: GetLocation_getLocation(id: 'initial-id', coords: point),
     );
 
-    final updated = original.updateWithJson({}); // nothing passed
+    test('updates with new data', () {
+      final updated = initial.updateWithJson({
+        'getLocation': {'id': 'updated-id', 'coords': null},
+      });
 
-    expect(updated.id, equals("sticky-id"));
-    expect(updated.coords!.x, equals(11));
-    expect(updated.coords!.y, equals(22));
+      expect(updated.getLocation?.id, 'updated-id');
+      expect(updated.getLocation?.coords, isNull);
+      expect(initial, isNot(updated));
+    });
+
+    test('updates with null data', () {
+      final updated = initial.updateWithJson({'getLocation': null});
+
+      expect(updated.getLocation, isNull);
+      expect(initial, isNot(updated));
+    });
   });
-
-  // test(' optional with default (if you support defaults)', () {
-  //   // Assuming schema says something like coords: Point = "POINT (0, 0)"
-  //   final json = {
-  //     "id": "has-default",
-  //     // coords missing
-  //   };
-  //
-  //   final location = GetLocation_getLocation.fromJson(json);
-  //
-  //   // If your generator applies defaults, test it here.
-  //   // If not, this should be null and you can remove this test.
-  //   expect(location.coords, isNull); // or Point(0, 0)
-  // });
 }

@@ -205,7 +205,6 @@ impl TemplateEnv<'_> {
         env.add_function("value_or_last", ext_jinja_fns::value_or_last);
         env.add_filter("if_not_last", ext_jinja_fns::if_not_last);
 
-        // 🧠 Pre-compute extra imports
         let extra_imports = ctx
             .config
             .custom_scalars
