@@ -13,7 +13,29 @@ void main() {
         expect(result.id, 'test-id-1');
         expect(result.coords, isA<Point>());
         expect(result.coords?.x, point.x);
+    });
+
+    group('pointFromJson error handling', () {
+      test('throws when "x" key is missing', () {
+        final json = {'y': 20};
+        expect(() => pointFromJson(json), throwsA(isA<Exception>()));
       });
+
+      test('throws when "y" key is missing', () {
+        final json = {'x': 10};
+        expect(() => pointFromJson(json), throwsA(isA<Exception>()));
+      });
+
+      test('throws when "x" is not numeric', () {
+        final json = {'x': 'not-a-number', 'y': 20};
+        expect(() => pointFromJson(json), throwsA(isA<Exception>()));
+      });
+
+      test('throws when "y" is not numeric', () {
+        final json = {'x': 10, 'y': 'not-a-number'};
+        expect(() => pointFromJson(json), throwsA(isA<Exception>()));
+      });
+    });
       test('with null optional value', () {
         final json = {'id': 'test-id-2', 'coords': null};
         final result = GetLocation_getLocation.fromJson(json);
