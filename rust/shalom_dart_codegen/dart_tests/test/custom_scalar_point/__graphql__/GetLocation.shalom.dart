@@ -77,7 +77,7 @@ class GetLocation_getLocation {
     coords_value =
         data['coords'] == null
             ? null
-            : customScalars['Point']!.deserialize(data['coords']);
+            : pointScalarImpl.deserialize(data['coords']);
 
     return GetLocation_getLocation(id: id_value, coords: coords_value);
   }
@@ -95,7 +95,7 @@ class GetLocation_getLocation {
       coords_value =
           data['coords'] == null
               ? null
-              : customScalars['Point']!.deserialize(data['coords']);
+              : pointScalarImpl.deserialize(data['coords']);
     } else {
       coords_value = coords;
     }
@@ -118,8 +118,7 @@ class GetLocation_getLocation {
     return {
       'id': id,
 
-      'coords':
-          coords == null ? null : customScalars['Point']!.serialize(coords),
+      'coords': coords == null ? null : pointScalarImpl.serialize(coords!),
     };
   }
 }

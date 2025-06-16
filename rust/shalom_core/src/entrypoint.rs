@@ -69,7 +69,7 @@ pub fn parse_directory(pwd: &Path) -> anyhow::Result<SharedShalomGlobalContext> 
     let config = match fs::read_to_string(&config_path) {
         Ok(yaml) => load_config_from_yaml_str(&yaml)?,
         Err(e) if e.kind() == ErrorKind::NotFound => {
-            println!(
+            log::info!(
                 "⚠️  No shalom.yml found in {}. Using default config.",
                 config_path.display()
             );

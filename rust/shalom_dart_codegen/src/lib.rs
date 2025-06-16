@@ -1,6 +1,7 @@
 use anyhow::Result;
 use lazy_static::lazy_static;
 use log::{info, trace};
+use minijinja::Value;
 use minijinja::{context, value::ViaDeserialize, Environment};
 use serde::Serialize;
 use shalom_core::{
@@ -13,6 +14,7 @@ use shalom_core::{
         context::{SchemaContext, SharedSchemaContext},
         types::{GraphQLAny, InputFieldDefinition},
     },
+    shalom_config::CustomScalarDefinition,
 };
 
 use std::{
@@ -26,6 +28,7 @@ use std::{
 struct TemplateEnv<'a> {
     env: Environment<'a>,
     extra_imports: Vec<String>,
+    custom_scalar_map: HashMap<String, CustomScalarDefinition>,
 }
 
 lazy_static! {
@@ -212,7 +215,11 @@ impl TemplateEnv<'_> {
             .map(|def| def.impl_symbol.import_path.display().to_string())
             .collect();
 
-        Self { env, extra_imports }
+        Self {
+            env,
+            extra_imports,
+            custom_scalar_map: ctx.config.custom_scalars.clone(),
+        }
     }
 
     fn render_operation<S: Serialize, T: Serialize>(
@@ -225,9 +232,11 @@ impl TemplateEnv<'_> {
 
         context.insert("schema", context! { context => schema_ctx });
         context.insert("operation", context! { context => operations_ctx });
-
         context.insert("extra_imports", self.extra_imports.clone().into());
-
+        context.insert(
+            "custom_scalar_map",
+            Value::from_serialize(&self.custom_scalar_map),
+        );
         template.render(&context).unwrap()
     }
 

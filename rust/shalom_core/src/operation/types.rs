@@ -58,14 +58,20 @@ pub struct ScalarSelection {
     #[serde(flatten)]
     pub common: SelectionCommon,
     pub concrete_type: Node<ScalarType>,
+    pub is_custom_scalar: bool,
 }
 pub type SharedScalarSelection = Rc<ScalarSelection>;
 
 impl ScalarSelection {
-    pub fn new(common: SelectionCommon, concrete_type: Node<ScalarType>) -> SharedScalarSelection {
+    pub fn new(
+        common: SelectionCommon,
+        concrete_type: Node<ScalarType>,
+        is_custom_scalar: bool,
+    ) -> SharedScalarSelection {
         Rc::new(ScalarSelection {
             common,
             concrete_type,
+            is_custom_scalar,
         })
     }
 }

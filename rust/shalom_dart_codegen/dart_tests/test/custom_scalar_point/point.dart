@@ -1,7 +1,5 @@
 import 'package:shalom_core/shalom_core.dart';
 
-final Map<String, CustomScalarImpl<dynamic>> customScalars = {};
-
 class Point {
   final int x;
   final int y;

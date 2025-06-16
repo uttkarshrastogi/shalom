@@ -4,4 +4,4 @@ custom_scalars:
     scalar_dart_type: "Point"
     impl_symbol:
       import_path: "import '../point.dart';"
-      symbol_name: "Point"
+      symbol_name: "pointScalarImpl"
