@@ -44,11 +44,7 @@ impl ShalomGlobalContext {
     }
 
     pub fn find_custom_scalar(&self, graphql_name: &str) -> Option<&CustomScalarDefinition> {
-        self.config
-            .custom_scalars
-            .iter()
-            .find(|(_, v)| v.graphql_name == graphql_name)
-            .map(|(_, v)| v)
+        self.config.custom_scalars.get(graphql_name)
     }
 
     pub fn operation_exists(&self, name: &str) -> bool {

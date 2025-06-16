@@ -14,7 +14,12 @@ class _PointScalarImpl implements CustomScalarImpl<Point> {
   @override
   Point deserialize(dynamic raw) {
     if (raw is Map<String, dynamic>) {
-      // Handles object-like: { "x": 12, "y": 34 }
+      // Check if keys exist and are integers before using them.
+      if (raw['x'] is! int || raw['y'] is! int) {
+        throw FormatException(
+          "Point fields 'x' and 'y' must be present and must be integers.",
+        );
+      }
       return Point(x: raw['x'], y: raw['y']);
     }
 
@@ -25,7 +30,7 @@ class _PointScalarImpl implements CustomScalarImpl<Point> {
     }
 
     // Handles string-like: "POINT (12, 34)"
-    final regex = RegExp(r'POINT\s*\((\d+),\s*(\d+)\)');
+    final regex = RegExp(r'POINT\s*\((-?\d+),\s*(-?\d+)\)');
     final match = regex.firstMatch(raw);
     if (match == null) throw FormatException("Invalid POINT format: $raw");
 

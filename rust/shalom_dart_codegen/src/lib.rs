@@ -13,11 +13,10 @@ use shalom_core::{
         context::SchemaContext,
         types::{GraphQLAny, InputFieldDefinition, SchemaFieldCommon},
     },
-    shalom_config::CustomScalarDefinition,
 };
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     ops::Deref,
     path::{Path, PathBuf},
@@ -27,7 +26,6 @@ use std::{
 struct TemplateEnv<'a> {
     env: Environment<'a>,
     extra_imports: Vec<String>,
-    custom_scalar_map: HashMap<String, CustomScalarDefinition>,
 }
 
 lazy_static! {
@@ -200,7 +198,7 @@ mod ext_jinja_fns {
 }
 
 impl TemplateEnv<'_> {
-    fn new(ctx: SharedShalomGlobalContext) -> Self {
+    fn new(ctx: &SharedShalomGlobalContext) -> Self {
         let mut env = Environment::new();
 
         env.add_template(
@@ -247,17 +245,16 @@ impl TemplateEnv<'_> {
             .custom_scalars
             .values()
             .map(|def| def.impl_symbol.import_path.display().to_string())
-            .collect();
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
 
-        Self {
-            env,
-            extra_imports,
-            custom_scalar_map: ctx.config.custom_scalars.clone(),
-        }
+        Self { env, extra_imports }
     }
 
     fn render_operation<S: Serialize, T: Serialize>(
         &self,
+        ctx: &SharedShalomGlobalContext,
         operations_ctx: S,
         schema_ctx: T,
     ) -> String {
@@ -269,18 +266,32 @@ impl TemplateEnv<'_> {
         context.insert("extra_imports", self.extra_imports.clone().into());
         context.insert(
             "custom_scalar_map",
-            Value::from_serialize(&self.custom_scalar_map),
+            Value::from_serialize(&ctx.config.custom_scalars),
         );
 
         template.render(&context).unwrap()
     }
 
-    fn render_schema<T: Serialize>(&self, schema_ctx: T) -> String {
+    fn render_schema<S: Serialize>(
+        &self,
+        ctx: &SharedShalomGlobalContext,
+        schema_ctx: S,
+    ) -> String {
         let template = self.env.get_template("schema").unwrap();
         let mut context = HashMap::new();
 
         context.insert("schema", context! { context => schema_ctx });
-        context.insert("extra_imports", self.extra_imports.clone().into());
+
+        let extra_imports: Vec<String> = ctx
+            .config
+            .custom_scalars
+            .values()
+            .map(|def| format!("import '{}';", def.impl_symbol.import_path.display()))
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        context.insert("extra_imports", extra_imports.into());
 
         trace!("resolved schema template; rendering...");
         template.render(&context).unwrap()
@@ -310,15 +321,15 @@ fn generate_operations_file(
 ) {
     info!("rendering operation {}", name);
     let operation_file_path = operation.file_path.clone();
-    let rendered_content = template_env.render_operation(operation, ctx.schema_ctx.clone());
+    let rendered_content = template_env.render_operation(ctx, operation, ctx.schema_ctx.clone());
     let generation_target = get_generation_path_for_operation(&operation_file_path, name);
     fs::write(&generation_target, rendered_content).unwrap();
     info!("Generated {}", generation_target.display());
 }
 
-fn generate_schema_file(template_env: &TemplateEnv, path: &Path, schema_ctx: &SchemaContext) {
+fn generate_schema_file(template_env: &TemplateEnv, ctx: &SharedShalomGlobalContext, path: &Path) {
     info!("rendering schema file");
-    let rendered_content = template_env.render_schema(schema_ctx);
+    let rendered_content = template_env.render_schema(ctx, ctx.schema_ctx.deref());
     let output_dir = path.join(GRAPHQL_DIRECTORY);
     create_dir_if_not_exists(&output_dir);
     let generation_target = output_dir.join(format!("schema.{}", END_OF_FILE));
@@ -329,7 +340,7 @@ fn generate_schema_file(template_env: &TemplateEnv, path: &Path, schema_ctx: &Sc
 pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
     info!("codegen started in working directory {}", pwd.display());
     let ctx = shalom_core::entrypoint::parse_directory(pwd)?;
-    let template_env = TemplateEnv::new(ctx.clone());
+    let template_env = TemplateEnv::new(&ctx);
 
     let existing_op_names =
         glob::glob(pwd.join(format!("**/*.{}", END_OF_FILE)).to_str().unwrap())?;
@@ -351,7 +362,7 @@ pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
         }
     }
 
-    generate_schema_file(&template_env, pwd, ctx.schema_ctx.deref());
+    generate_schema_file(&template_env, &ctx, pwd);
     for (name, operation) in ctx.operations() {
         generate_operations_file(&template_env, &ctx, &name, operation);
     }

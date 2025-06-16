@@ -68,6 +68,40 @@ void main() {
     });
   });
 
+  group('pointScalarImpl.deserialize error handling', () {
+    test('throws when "x" key is missing', () {
+      final json = {'y': 20};
+      // Use a function closure to test that an exception is thrown
+      expect(
+        () => pointScalarImpl.deserialize(json),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('throws when "y" key is missing', () {
+      final json = {'x': 10};
+      expect(
+        () => pointScalarImpl.deserialize(json),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('throws when "x" is not numeric in string format', () {
+      final json = "POINT (abc, 20)";
+      expect(
+        () => pointScalarImpl.deserialize(json),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('throws when "y" is not numeric in string format', () {
+      final json = "POINT (10, xyz)";
+      expect(
+        () => pointScalarImpl.deserialize(json),
+        throwsA(isA<Exception>()),
+      );
+    });
+  });
   group('GetLocationResponse', () {
     group('deserialize', () {
       test('with value', () {
