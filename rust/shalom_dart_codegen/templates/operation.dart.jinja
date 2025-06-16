@@ -1,14 +1,13 @@
 {% include "macros" %}
+// ignore_for_file: constant_identifier_names, non_constant_identifier_names, unused_import, camel_case_types
 
-{% if schema.context.types.enums | length > 0 or schema.context.types.inputs | length > 0 %}
 import "schema.shalom.dart";
-{% endif %}
+{% for path, namespace_alias in extra_imports | items -%}
+import '{{path}}' as {{ namespace_alias }};
+{% endfor %}
 
 import 'package:shalom_core/shalom_core.dart';
 
-{% for import in extra_imports %}
-{{ import }}
-{% endfor %}
 
 {% set operation_name = operation.context.operation_name %}
 {% macro base_object_impl(typename, selections) %}
@@ -50,7 +49,7 @@ import 'package:shalom_core/shalom_core.dart';
         {% elif selection.kind == "Scalar" %}
             final {{ type_name_for_selection(selection) }} {{ selection_name }}_value;
             {% if selection.is_custom_scalar %}
-                {% set scalar_impl = custom_scalar_map[selection.concrete_type.name].impl_symbol.symbol_name %}
+                {% set scalar_impl = custom_scalar_impl_fullname(selection.concrete_type.name) %}
                 {{ selection_name }}_value = data['{{ selection_name }}'] == null
                   ? null
                   : {{ scalar_impl }}.deserialize(data['{{ selection_name }}']);
@@ -106,7 +105,7 @@ import 'package:shalom_core/shalom_core.dart';
     final {{ type_name_for_selection(selection) }} {{ selection_name }}_value;
     if (data.containsKey('{{ selection_name }}')) {
         {% if selection.is_custom_scalar %}
-            {% set scalar_impl = custom_scalar_map[selection.concrete_type.name].impl_symbol.symbol_name %}
+            {% set scalar_impl = custom_scalar_impl_fullname(selection.concrete_type.name) %}
             {{ selection_name }}_value = data['{{ selection_name }}'] == null
                 ? null
                 : {{ scalar_impl }}.deserialize(data['{{ selection_name }}']);
@@ -176,7 +175,7 @@ import 'package:shalom_core/shalom_core.dart';
                 {{ selection_name }}{% if selection.is_optional %}?{% endif %}.toJson()
             {% elif selection.kind == "Scalar" %}
                 {% if selection.is_custom_scalar %}
-                    {% set scalar_impl = custom_scalar_map[selection.concrete_type.name].impl_symbol.symbol_name %}
+                    {% set scalar_impl = custom_scalar_impl_fullname(selection.concrete_type.name) %}
                     {{ selection_name }} == null ? null : {{ scalar_impl }}.serialize({{ selection_name }}!)
                 {% else %}
                     {{ selection_name }}
@@ -192,8 +191,6 @@ import 'package:shalom_core/shalom_core.dart';
     }
 {% endmacro %}
 typedef JsonObject = Map<String, dynamic>;
-// ignore_for_file: non_constant_identifier_names
-// ignore_for_file: camel_case_types
 
 
 
@@ -242,7 +239,7 @@ class Request{{ operation_name }} extends Requestable {
 class {{ operation_name }}Variables {
     {% set typename = operation_name ~ 'Variables' %}
     {% for name, variable in op_variables | items %}
-        final {{ type_name_for_field(variable) }} {{ name }};
+        final {{ type_name_for_input_field(variable) }} {{ name }};
     {% endfor %}
 
     {{ typename }} (

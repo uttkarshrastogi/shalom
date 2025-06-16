@@ -1,7 +1,7 @@
 use anyhow::Result;
 use lazy_static::lazy_static;
 use log::{info, trace};
-use minijinja::{context, value::ViaDeserialize, Environment, Value};
+use minijinja::{context, value::ViaDeserialize, Environment};
 use serde::Serialize;
 use shalom_core::{
     context::SharedShalomGlobalContext,
@@ -12,14 +12,14 @@ use shalom_core::{
     schema::{
         context::SchemaContext,
         types::{GraphQLAny, InputFieldDefinition, SchemaFieldCommon},
-    }, shalom_config::RuntimeSymbolDefinition,
+    },
+    shalom_config::RuntimeSymbolDefinition,
 };
 
-use core::num;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs,
-    ops::Deref,
+    hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -43,8 +43,6 @@ const LINE_ENDING: &str = "\r\n";
 #[cfg(not(windows))]
 const LINE_ENDING: &str = "\n";
 
-
-
 mod ext_jinja_fns {
     use super::*;
 
@@ -63,27 +61,8 @@ mod ext_jinja_fns {
                         output_typename.push('?');
                     }
                     output_typename
-          }
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-           else {
-                    let mut resolved = dart_type_for_scalar(scalar_name, ctx);
+                } else {
+                    let mut resolved = dart_type_for_scalar(scalar_name);
                     if scalar.common.is_optional {
                         resolved.push('?');
                     }
@@ -107,34 +86,23 @@ mod ext_jinja_fns {
         }
     }
 
-    pub fn resolve_field_type_name(
-        schema_ctx: &SchemaContext,
-        field: &InputFieldDefinition,
-        ctx: &SharedShalomGlobalContext,
-    ) -> String {
-        let gql_ty = field.common.resolve_type(schema_ctx).ty;
-        let ty_name = gql_ty.name();
-
-        match gql_ty {
-            GraphQLAny::Scalar(_) => {
-                if let Some(custom_scalar) = ctx.find_custom_scalar(&ty_name) {
-                    let mut scalar_typename = custom_scalar.output_type
-                } else {
-                    dart_type_for_scalar(&ty_name, ctx)
-                }
-            }
-            GraphQLAny::InputObject(_) => ty_name,
-            GraphQLAny::Enum(enum_) => enum_.name.clone(),
-            _ => unimplemented!("input type not supported"),
-        }
-    }
-
-    pub fn type_name_for_field(
+    pub fn type_name_for_input_field(
         ctx: &SharedShalomGlobalContext,
         field: ViaDeserialize<InputFieldDefinition>,
     ) -> String {
         let field = field.0;
-        let resolved = resolve_field_type_name(&ctx.schema_ctx, &field, ctx);
+        let resolved = match field.common.resolve_type(&ctx.schema_ctx).ty {
+            GraphQLAny::Scalar(scalar) => {
+                if let Some(custom_scalar) = ctx.find_custom_scalar(&scalar.name) {
+                    custom_scalar.output_type.symbol_fullname()
+                } else {
+                    dart_type_for_scalar(&scalar.name)
+                }
+            }
+            GraphQLAny::InputObject(obj) => obj.name.clone(),
+            GraphQLAny::Enum(enum_) => enum_.name.clone(),
+            _ => unimplemented!("input type not supported"),
+        };
         if field.is_optional && field.default_value.is_none() {
             format!("Option<{}?>", resolved)
         } else if field.is_optional {
@@ -143,7 +111,7 @@ mod ext_jinja_fns {
             resolved
         }
     }
-    
+
     pub fn parse_field_default_value(
         schema_ctx: &SchemaContext,
         field: ViaDeserialize<InputFieldDefinition>,
@@ -200,48 +168,51 @@ mod ext_jinja_fns {
         }
     }
 
-
-    pub fn symbol_namespace(sym: RuntimeSymbolDefinition) -> Option<String> {
-        sym.namespace()
+    pub fn custom_scalar_impl_fullname(
+        ctx: &SharedShalomGlobalContext,
+        scalar_name: String,
+    ) -> String {
+        let scalar = ctx
+            .find_custom_scalar(&scalar_name)
+            .expect("Custom scalar not found");
+        scalar.impl_symbol.symbol_fullname()
     }
-
-    pub fn symbol_fullname(sym: RuntimeSymbolDefinition) -> String {
-        sym.symbol_fullname()
-    }
-
 }
 
+/// takes a number and returns itself as if the abc was 123, i.e 143 would be "adc"
+fn number_to_abc(n: u32) -> String {
+    let abc = "abcdefghijklmnopqrstuvwxyz";
+    let mut result = String::new();
+    let mut num = n;
+    while num > 0 {
+        let index = (num - 1) % 26;
+        result.push(abc.chars().nth(index as usize).unwrap());
+        num = (num - 1) / 26;
+    }
+    result
+}
 trait SymbolName {
     fn symbol_fullname(&self) -> String;
     fn namespace(&self) -> Option<String>;
 }
 impl SymbolName for RuntimeSymbolDefinition {
     fn namespace(&self) -> Option<String> {
-        self.import_path.map(
-            |p| numbers_to_word(num::hash(&p))
-        )
+        self.import_path.as_ref().map(|p| {
+            let mut hasher: DefaultHasher = DefaultHasher::new();
+            p.hash(&mut hasher);
+            number_to_abc(hasher.finish() as u32)
+        })
     }
 
     fn symbol_fullname(&self) -> String {
+        // we export it in schema.shalom.dart
         if let Some(namespace) = self.namespace() {
             format!("{}.{}", namespace, self.symbol_name)
         } else {
+            // it is a global symbol, so we just return the name
             self.symbol_name.clone()
         }
     }
-}
-
-/// i.e 132 would become 'acb'
-fn numbers_to_word(n: u64) -> String {
-    let mut result = String::new();
-    let alphabet: Vec<char> = "abcdefghijklmnopqrstuvwxyz".chars().collect();
-    let mut num = n;
-    while num > 0 {
-        let index = (num - 1) % 26;
-        result.push(alphabet[index as usize]);
-        num = (num - 1) / 26;
-    }
-    result
 }
 
 impl TemplateEnv<'_> {
@@ -264,8 +235,8 @@ impl TemplateEnv<'_> {
         });
 
         let ctx_clone = ctx.clone();
-        env.add_function("type_name_for_field", move |a: _| {
-            ext_jinja_fns::type_name_for_field(&ctx_clone, a)
+        env.add_function("type_name_for_input_field", move |a: _| {
+            ext_jinja_fns::type_name_for_input_field(&ctx_clone, a)
         });
 
         let schema_ctx_clone = ctx.schema_ctx.clone();
@@ -278,10 +249,10 @@ impl TemplateEnv<'_> {
             ext_jinja_fns::resolve_field_type(&schema_ctx_clone, a)
         });
 
-
-        env.add_function("symbol_namespace", ext_jinja_fns::symbol_namespace);
-        env.add_function("symbol_fullname", ext_jinja_fns::symbol_fullname);
-
+        let ctx_clone = ctx.clone();
+        env.add_function("custom_scalar_impl_fullname", move |a: _| {
+            ext_jinja_fns::custom_scalar_impl_fullname(&ctx_clone, a)
+        });
 
         env.add_function("docstring", ext_jinja_fns::docstring);
         env.add_function("value_or_last", ext_jinja_fns::value_or_last);
@@ -292,19 +263,16 @@ impl TemplateEnv<'_> {
 
     fn render_operation<S: Serialize, T: Serialize>(
         &self,
-        ctx: &SharedShalomGlobalContext,
         operations_ctx: S,
         schema_ctx: T,
+        extra_imports: HashMap<String, String>,
     ) -> String {
         let template = self.env.get_template("operation").unwrap();
         let mut context = HashMap::new();
 
         context.insert("schema", context! { context => schema_ctx });
         context.insert("operation", context! { context => operations_ctx });
-        context.insert(
-            "custom_scalar_map",
-            Value::from_serialize(&ctx.config.custom_scalars),
-        );
+        context.insert("extra_imports", minijinja::Value::from(extra_imports));
 
         template.render(&context).unwrap()
     }
@@ -312,23 +280,7 @@ impl TemplateEnv<'_> {
     fn render_schema(&self, ctx: &SharedShalomGlobalContext) -> String {
         let template = self.env.get_template("schema").unwrap();
         let mut context = HashMap::new();
-        let mut exports: HashMap<Option<PathBuf>, Vec<String>> = HashMap::new();
-        
-        for custom_scalar in ctx.get_custom_scalars().values(){
-            for symbol in vec![&custom_scalar.impl_symbol, &custom_scalar.output_type]{
-                let import_path = &symbol.import_path;
-                if exports.contains_key(&import_path) {
-                    exports.get_mut(&import_path).unwrap().push(symbol.symbol_name.clone());
-                } else {
-                    exports.insert(import_path.clone(), vec![symbol.symbol_name.clone()]);
-                }
-            }
-        }
 
-        context.insert(
-            "exports",
-            Value::from_serialize(&exports),
-        );
         context.insert("schema", context! { context => &ctx.schema_ctx });
 
         trace!("resolved schema template; rendering...");
@@ -356,10 +308,13 @@ fn generate_operations_file(
     ctx: &SharedShalomGlobalContext,
     name: &str,
     operation: Rc<OperationContext>,
+    additional_imports: HashMap<String, String>,
 ) {
     info!("rendering operation {}", name);
     let operation_file_path = operation.file_path.clone();
-    let rendered_content = template_env.render_operation(ctx, operation, ctx.schema_ctx.clone());
+
+    let rendered_content =
+        template_env.render_operation(operation, ctx.schema_ctx.clone(), additional_imports);
     let generation_target = get_generation_path_for_operation(&operation_file_path, name);
     fs::write(&generation_target, rendered_content).unwrap();
     info!("Generated {}", generation_target.display());
@@ -402,8 +357,32 @@ pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
     }
 
     generate_schema_file(&template_env, &ctx, pwd);
+    let mut additional_imports: HashMap<PathBuf, String> = HashMap::new();
+
+    for custom_scalar in ctx.get_custom_scalars().values() {
+        for symbol in [&custom_scalar.impl_symbol, &custom_scalar.output_type] {
+            if let Some(import_path) = &symbol.import_path {
+                if !additional_imports.contains_key(import_path) {
+                    let mut hasher: DefaultHasher = DefaultHasher::new();
+                    import_path.hash(&mut hasher);
+                    additional_imports
+                        .insert(import_path.clone(), number_to_abc(hasher.finish() as u32));
+                }
+            }
+        }
+    }
+    let additional_imports: HashMap<String, String> = additional_imports
+        .into_iter()
+        .map(|(k, v)| (k.to_string_lossy().to_string(), v))
+        .collect();
     for (name, operation) in ctx.operations() {
-        generate_operations_file(&template_env, &ctx, &name, operation);
+        generate_operations_file(
+            &template_env,
+            &ctx,
+            &name,
+            operation,
+            additional_imports.clone(),
+        );
     }
 
     Ok(())

@@ -1,5 +1,3 @@
-use crate::context::SharedShalomGlobalContext;
-
 use std::{cell::RefCell, rc::Rc};
 
 use apollo_compiler::Node;
@@ -117,11 +115,7 @@ impl EnumSelection {
     }
 }
 
-pub fn dart_type_for_scalar(scalar_name: &str, ctx: &SharedShalomGlobalContext) -> String {
-    if let Some(mapping) = ctx.find_custom_scalar(scalar_name) {
-        
-    }
-
+pub fn dart_type_for_scalar(scalar_name: &str) -> String {
     match scalar_name {
         "String" | "ID" => "String".to_string(),
         "Int" => "int".to_string(),

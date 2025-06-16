@@ -1,9 +1,11 @@
+// ignore_for_file: constant_identifier_names, non_constant_identifier_names, unused_import, camel_case_types
+
+import "schema.shalom.dart";
+import '../point.dart' as uomtoe;
+
 import 'package:shalom_core/shalom_core.dart';
 
-
 typedef JsonObject = Map<String, dynamic>;
-// ignore_for_file: non_constant_identifier_names
-// ignore_for_file: camel_case_types
 
 class GetLocationResponse {
   /// class members
@@ -62,7 +64,7 @@ class GetLocation_getLocation {
 
   final String id;
 
-  final Point? coords;
+  final uomtoe.Point? coords;
 
   // keywordargs constructor
   GetLocation_getLocation({required this.id, this.coords});
@@ -71,12 +73,12 @@ class GetLocation_getLocation {
 
     id_value = data['id'];
 
-    final Point? coords_value;
+    final uomtoe.Point? coords_value;
 
     coords_value =
         data['coords'] == null
             ? null
-            : pointScalarImpl.deserialize(data['coords']);
+            : uomtoe.pointScalarImpl.deserialize(data['coords']);
 
     return GetLocation_getLocation(id: id_value, coords: coords_value);
   }
@@ -89,12 +91,12 @@ class GetLocation_getLocation {
       id_value = id;
     }
 
-    final Point? coords_value;
+    final uomtoe.Point? coords_value;
     if (data.containsKey('coords')) {
       coords_value =
           data['coords'] == null
               ? null
-              : pointScalarImpl.deserialize(data['coords']);
+              : uomtoe.pointScalarImpl.deserialize(data['coords']);
     } else {
       coords_value = coords;
     }
@@ -117,7 +119,8 @@ class GetLocation_getLocation {
     return {
       'id': id,
 
-      'coords': coords == null ? null : pointScalarImpl.serialize(coords!),
+      'coords':
+          coords == null ? null : uomtoe.pointScalarImpl.serialize(coords!),
     };
   }
 }

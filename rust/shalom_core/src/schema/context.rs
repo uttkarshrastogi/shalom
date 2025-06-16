@@ -1,5 +1,4 @@
 use crate::schema::types::GraphQLAny;
-use crate::shalom_config::CustomScalarDefinition;
 use apollo_compiler::{validation::Valid, Node};
 use serde::{Serialize, Serializer};
 use std::fmt::Debug;
@@ -146,6 +145,5 @@ impl SchemaContext {
         types_ctx.add_input(name, type_);
         Ok(())
     }
-
 }
 pub type SharedSchemaContext = Arc<SchemaContext>;
