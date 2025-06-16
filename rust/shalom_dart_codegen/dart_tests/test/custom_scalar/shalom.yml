@@ -3,5 +3,5 @@ custom_scalars:
     graphql_name: "Point"
     scalar_dart_type: "Point"
     impl_symbol:
-      import_path: "import '../point.dart';"
+      import_path: "../point.dart"
       symbol_name: "pointScalarImpl"

@@ -1,6 +1,5 @@
 import 'package:shalom_core/shalom_core.dart';
 
-import '../point.dart';
 
 typedef JsonObject = Map<String, dynamic>;
 // ignore_for_file: non_constant_identifier_names
