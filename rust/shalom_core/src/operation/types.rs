@@ -119,12 +119,7 @@ impl EnumSelection {
 
 pub fn dart_type_for_scalar(scalar_name: &str, ctx: &SharedShalomGlobalContext) -> String {
     if let Some(mapping) = ctx.find_custom_scalar(scalar_name) {
-        return mapping
-            .scalar_dart_type
-            .split('#')
-            .next_back()
-            .unwrap_or("dynamic")
-            .to_string();
+        
     }
 
     match scalar_name {

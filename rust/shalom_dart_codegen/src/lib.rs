@@ -12,9 +12,10 @@ use shalom_core::{
     schema::{
         context::SchemaContext,
         types::{GraphQLAny, InputFieldDefinition, SchemaFieldCommon},
-    },
+    }, shalom_config::RuntimeSymbolDefinition,
 };
 
+use core::num;
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -25,7 +26,6 @@ use std::{
 
 struct TemplateEnv<'a> {
     env: Environment<'a>,
-    extra_imports: Vec<String>,
 }
 
 lazy_static! {
@@ -43,6 +43,8 @@ const LINE_ENDING: &str = "\r\n";
 #[cfg(not(windows))]
 const LINE_ENDING: &str = "\n";
 
+
+
 mod ext_jinja_fns {
     use super::*;
 
@@ -54,18 +56,33 @@ mod ext_jinja_fns {
         match selection.0 {
             Selection::Scalar(scalar) => {
                 let scalar_name = &scalar.concrete_type.name;
-                if let Some(mapping) = ctx.find_custom_scalar(scalar_name) {
-                    let mut resolved = mapping
-                        .scalar_dart_type
-                        .split('#')
-                        .next_back()
-                        .unwrap_or("dynamic")
-                        .to_string();
+                if let Some(custom_scalar) = ctx.find_custom_scalar(scalar_name) {
+                    // the symbol name should be available globally at runtime
+                    let mut output_typename = custom_scalar.output_type.symbol_fullname();
                     if scalar.common.is_optional {
-                        resolved.push('?');
+                        output_typename.push('?');
                     }
-                    resolved
-                } else {
+                    output_typename
+          }
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+           else {
                     let mut resolved = dart_type_for_scalar(scalar_name, ctx);
                     if scalar.common.is_optional {
                         resolved.push('?');
@@ -100,13 +117,8 @@ mod ext_jinja_fns {
 
         match gql_ty {
             GraphQLAny::Scalar(_) => {
-                if let Some(mapping) = ctx.find_custom_scalar(&ty_name) {
-                    mapping
-                        .scalar_dart_type
-                        .split('#')
-                        .next_back()
-                        .unwrap_or("dynamic")
-                        .to_string()
+                if let Some(custom_scalar) = ctx.find_custom_scalar(&ty_name) {
+                    let mut scalar_typename = custom_scalar.output_type
                 } else {
                     dart_type_for_scalar(&ty_name, ctx)
                 }
@@ -131,7 +143,7 @@ mod ext_jinja_fns {
             resolved
         }
     }
-
+    
     pub fn parse_field_default_value(
         schema_ctx: &SchemaContext,
         field: ViaDeserialize<InputFieldDefinition>,
@@ -148,14 +160,6 @@ mod ext_jinja_fns {
         } else {
             default_value.to_string()
         }
-    }
-
-    pub fn is_input_type(
-        schema_ctx: &SchemaContext,
-        field: ViaDeserialize<SchemaFieldCommon>,
-    ) -> bool {
-        let ty = field.0.unresolved_type.resolve(schema_ctx).ty;
-        matches!(ty, GraphQLAny::InputObject(_))
     }
 
     pub fn resolve_field_type(
@@ -195,6 +199,49 @@ mod ext_jinja_fns {
             value
         }
     }
+
+
+    pub fn symbol_namespace(sym: RuntimeSymbolDefinition) -> Option<String> {
+        sym.namespace()
+    }
+
+    pub fn symbol_fullname(sym: RuntimeSymbolDefinition) -> String {
+        sym.symbol_fullname()
+    }
+
+}
+
+trait SymbolName {
+    fn symbol_fullname(&self) -> String;
+    fn namespace(&self) -> Option<String>;
+}
+impl SymbolName for RuntimeSymbolDefinition {
+    fn namespace(&self) -> Option<String> {
+        self.import_path.map(
+            |p| numbers_to_word(num::hash(&p))
+        )
+    }
+
+    fn symbol_fullname(&self) -> String {
+        if let Some(namespace) = self.namespace() {
+            format!("{}.{}", namespace, self.symbol_name)
+        } else {
+            self.symbol_name.clone()
+        }
+    }
+}
+
+/// i.e 132 would become 'acb'
+fn numbers_to_word(n: u64) -> String {
+    let mut result = String::new();
+    let alphabet: Vec<char> = "abcdefghijklmnopqrstuvwxyz".chars().collect();
+    let mut num = n;
+    while num > 0 {
+        let index = (num - 1) % 26;
+        result.push(alphabet[index as usize]);
+        num = (num - 1) / 26;
+    }
+    result
 }
 
 impl TemplateEnv<'_> {
@@ -231,25 +278,16 @@ impl TemplateEnv<'_> {
             ext_jinja_fns::resolve_field_type(&schema_ctx_clone, a)
         });
 
-        let schema_ctx_clone = ctx.schema_ctx.clone();
-        env.add_function("is_input_type", move |a: _| {
-            ext_jinja_fns::is_input_type(&schema_ctx_clone, a)
-        });
+
+        env.add_function("symbol_namespace", ext_jinja_fns::symbol_namespace);
+        env.add_function("symbol_fullname", ext_jinja_fns::symbol_fullname);
+
 
         env.add_function("docstring", ext_jinja_fns::docstring);
         env.add_function("value_or_last", ext_jinja_fns::value_or_last);
         env.add_filter("if_not_last", ext_jinja_fns::if_not_last);
 
-        let extra_imports = ctx
-            .config
-            .custom_scalars
-            .values()
-            .map(|def| def.impl_symbol.import_path.display().to_string())
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
-
-        Self { env, extra_imports }
+        Self { env }
     }
 
     fn render_operation<S: Serialize, T: Serialize>(
@@ -263,7 +301,6 @@ impl TemplateEnv<'_> {
 
         context.insert("schema", context! { context => schema_ctx });
         context.insert("operation", context! { context => operations_ctx });
-        context.insert("extra_imports", self.extra_imports.clone().into());
         context.insert(
             "custom_scalar_map",
             Value::from_serialize(&ctx.config.custom_scalars),
@@ -272,26 +309,27 @@ impl TemplateEnv<'_> {
         template.render(&context).unwrap()
     }
 
-    fn render_schema<S: Serialize>(
-        &self,
-        ctx: &SharedShalomGlobalContext,
-        schema_ctx: S,
-    ) -> String {
+    fn render_schema(&self, ctx: &SharedShalomGlobalContext) -> String {
         let template = self.env.get_template("schema").unwrap();
         let mut context = HashMap::new();
+        let mut exports: HashMap<Option<PathBuf>, Vec<String>> = HashMap::new();
+        
+        for custom_scalar in ctx.get_custom_scalars().values(){
+            for symbol in vec![&custom_scalar.impl_symbol, &custom_scalar.output_type]{
+                let import_path = &symbol.import_path;
+                if exports.contains_key(&import_path) {
+                    exports.get_mut(&import_path).unwrap().push(symbol.symbol_name.clone());
+                } else {
+                    exports.insert(import_path.clone(), vec![symbol.symbol_name.clone()]);
+                }
+            }
+        }
 
-        context.insert("schema", context! { context => schema_ctx });
-
-        let extra_imports: Vec<String> = ctx
-            .config
-            .custom_scalars
-            .values()
-            .map(|def| format!("import '{}';", def.impl_symbol.import_path.display()))
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
-
-        context.insert("extra_imports", extra_imports.into());
+        context.insert(
+            "exports",
+            Value::from_serialize(&exports),
+        );
+        context.insert("schema", context! { context => &ctx.schema_ctx });
 
         trace!("resolved schema template; rendering...");
         template.render(&context).unwrap()
@@ -329,7 +367,8 @@ fn generate_operations_file(
 
 fn generate_schema_file(template_env: &TemplateEnv, ctx: &SharedShalomGlobalContext, path: &Path) {
     info!("rendering schema file");
-    let rendered_content = template_env.render_schema(ctx, ctx.schema_ctx.deref());
+
+    let rendered_content = template_env.render_schema(ctx);
     let output_dir = path.join(GRAPHQL_DIRECTORY);
     create_dir_if_not_exists(&output_dir);
     let generation_target = output_dir.join(format!("schema.{}", END_OF_FILE));

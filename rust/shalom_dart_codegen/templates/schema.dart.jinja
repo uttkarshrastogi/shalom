@@ -2,8 +2,11 @@
 {% include "macros" %}
 {% if schema.context.types.inputs | length > 0 %}
 import 'package:shalom_core/shalom_core.dart';
-
 {% endif %}
+{% for path, symbols in exports | items - %}
+import '{{path}}' show {{symbols | join(", ")}};
+{% endfor %}
+
 
 
 

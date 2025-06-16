@@ -47,6 +47,10 @@ impl ShalomGlobalContext {
         self.config.custom_scalars.get(graphql_name)
     }
 
+    pub fn get_custom_scalars(&self) -> &HashMap<String, CustomScalarDefinition> {
+        &self.config.custom_scalars
+    }
+
     pub fn operation_exists(&self, name: &str) -> bool {
         let operations = self.operations.lock().unwrap();
         operations.contains_key(name)

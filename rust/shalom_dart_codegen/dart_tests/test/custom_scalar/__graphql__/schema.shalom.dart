@@ -6,3 +6,8 @@
 // ------------ Input DEFINITIONS -------------
 
 // ------------ END Input DEFINITIONS -------------
+export '../point.dart' show pointScalarImpl;
+
+
+
+
