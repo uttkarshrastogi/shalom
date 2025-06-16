@@ -1,4 +1,5 @@
 mod test_custom_scalar_point;
+mod test_enum_arguments;
 mod test_enum_selection;
 mod test_input_objects;
 mod test_nested_input_objects;

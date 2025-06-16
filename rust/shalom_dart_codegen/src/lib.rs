@@ -4,12 +4,10 @@ use log::{info, trace};
 use minijinja::Value;
 use minijinja::{context, value::ViaDeserialize, Environment};
 use serde::Serialize;
+use shalom_core::operation::types::dart_type_for_scalar;
 use shalom_core::{
     context::SharedShalomGlobalContext,
-    operation::{
-        context::OperationContext,
-        types::{dart_type_for_scalar, Selection},
-    },
+    operation::{context::OperationContext, types::Selection},
     schema::{
         context::{SchemaContext, SharedSchemaContext},
         types::{GraphQLAny, InputFieldDefinition},
@@ -48,7 +46,6 @@ const LINE_ENDING: &str = "\n";
 
 mod ext_jinja_fns {
     use super::*;
-    use shalom_core::schema::types::FieldType;
 
     #[allow(unused_variables)]
     pub fn type_name_for_selection(
@@ -58,26 +55,21 @@ mod ext_jinja_fns {
         match selection.0 {
             Selection::Scalar(scalar) => {
                 let scalar_name = &scalar.concrete_type.name;
-                if let Some(mapping) = ctx.find_custom_scalar(scalar_name) {
-                    let mut resolved = mapping
+                let mut resolved = if let Some(mapping) = ctx.find_custom_scalar(scalar_name) {
+                    mapping
                         .scalar_dart_type
                         .split('#')
                         .next_back()
                         .unwrap_or("dynamic")
-                        .to_string();
-                    if scalar.common.is_optional {
-                        resolved.push('?');
-                    }
-                    resolved
+                        .to_string()
                 } else {
-                    let mut resolved = dart_type_for_scalar(scalar_name, ctx);
-                    if scalar.common.is_optional {
-                        resolved.push('?');
-                    }
-                    resolved
+                    dart_type_for_scalar(scalar_name, ctx)
+                };
+                if scalar.common.is_optional {
+                    resolved.push('?');
                 }
+                resolved
             }
-
             Selection::Object(object) => {
                 if object.common.is_optional {
                     format!("{}?", object.common.full_name)
@@ -95,7 +87,6 @@ mod ext_jinja_fns {
         }
     }
 
-    #[allow(unused_variables)]
     pub fn type_name_for_field(
         ctx: &SharedShalomGlobalContext,
         input: ViaDeserialize<InputFieldDefinition>,
@@ -116,6 +107,7 @@ mod ext_jinja_fns {
                 }
             }
             GraphQLAny::InputObject(_) => ty_name,
+            GraphQLAny::Enum(enum_) => enum_.name.clone(),
             _ => unimplemented!("input type not supported"),
         };
 
@@ -229,7 +221,6 @@ impl TemplateEnv<'_> {
     ) -> String {
         let template = self.env.get_template("operation").unwrap();
         let mut context = HashMap::new();
-
         context.insert("schema", context! { context => schema_ctx });
         context.insert("operation", context! { context => operations_ctx });
         context.insert("extra_imports", self.extra_imports.clone().into());
@@ -247,20 +238,14 @@ impl TemplateEnv<'_> {
     ) -> String {
         let template = self.env.get_template("schema").unwrap();
         let mut context = HashMap::new();
-
         context.insert("schema", context! { context => schema_ctx });
-
         let extra_imports: Vec<String> = ctx
             .config
             .custom_scalars
             .values()
             .map(|def| format!("import '{}';", def.impl_symbol.import_path.display()))
             .collect();
-
         context.insert("extra_imports", self.extra_imports.clone().into());
-
-        dbg!("debug this");
-        dbg!(&extra_imports);
         trace!("resolved schema template; rendering...");
         template.render(&context).unwrap()
     }

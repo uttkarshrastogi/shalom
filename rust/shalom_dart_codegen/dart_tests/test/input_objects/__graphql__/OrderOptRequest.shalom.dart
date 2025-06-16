@@ -181,4 +181,16 @@ class OrderOptRequestVariables {
 
     return data;
   }
+
+  OrderOptRequestVariables updateWith({OrderOpt? order}) {
+    final OrderOpt order$next;
+
+    if (order != null) {
+      order$next = order;
+    } else {
+      order$next = this.order;
+    }
+
+    return OrderOptRequestVariables(order: order$next);
+  }
 }
