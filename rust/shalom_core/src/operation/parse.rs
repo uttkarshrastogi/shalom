@@ -106,7 +106,7 @@ fn parse_selection_set(
     }
     let schema_type = global_ctx
         .schema_ctx
-        .get_type(selection_orig.ty.to_string().as_str())
+        .get_type(&selection_orig.ty.to_string())
         .unwrap();
     let selection: Selection = match schema_type {
         GraphQLAny::Scalar(scalar) => {

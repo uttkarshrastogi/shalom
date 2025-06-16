@@ -201,7 +201,7 @@ mod tests {
         .to_string();
         let ctx = resolve(&schema).unwrap();
 
-        let object = ctx.get_type("Query");
+        let object = ctx.get_type(&"Query".to_string());
         assert!(object.is_some());
         let obj = object.unwrap().object();
         assert!(obj.is_some());
