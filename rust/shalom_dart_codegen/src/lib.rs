@@ -1,16 +1,17 @@
 use anyhow::Result;
 use lazy_static::lazy_static;
 use log::{info, trace};
-use minijinja::Value;
-use minijinja::{context, value::ViaDeserialize, Environment};
+use minijinja::{context, value::ViaDeserialize, Environment, Value};
 use serde::Serialize;
-use shalom_core::operation::types::dart_type_for_scalar;
 use shalom_core::{
     context::SharedShalomGlobalContext,
-    operation::{context::OperationContext, types::Selection},
+    operation::{
+        context::OperationContext,
+        types::{dart_type_for_scalar, Selection},
+    },
     schema::{
-        context::{SchemaContext, SharedSchemaContext},
-        types::{GraphQLAny, InputFieldDefinition},
+        context::SchemaContext,
+        types::{GraphQLAny, InputFieldDefinition, SchemaFieldCommon},
     },
     shalom_config::CustomScalarDefinition,
 };
@@ -55,20 +56,24 @@ mod ext_jinja_fns {
         match selection.0 {
             Selection::Scalar(scalar) => {
                 let scalar_name = &scalar.concrete_type.name;
-                let mut resolved = if let Some(mapping) = ctx.find_custom_scalar(scalar_name) {
-                    mapping
+                if let Some(mapping) = ctx.find_custom_scalar(scalar_name) {
+                    let mut resolved = mapping
                         .scalar_dart_type
                         .split('#')
                         .next_back()
                         .unwrap_or("dynamic")
-                        .to_string()
+                        .to_string();
+                    if scalar.common.is_optional {
+                        resolved.push('?');
+                    }
+                    resolved
                 } else {
-                    dart_type_for_scalar(scalar_name, ctx)
-                };
-                if scalar.common.is_optional {
-                    resolved.push('?');
+                    let mut resolved = dart_type_for_scalar(scalar_name, ctx);
+                    if scalar.common.is_optional {
+                        resolved.push('?');
+                    }
+                    resolved
                 }
-                resolved
             }
             Selection::Object(object) => {
                 if object.common.is_optional {
@@ -87,13 +92,15 @@ mod ext_jinja_fns {
         }
     }
 
-    pub fn type_name_for_field(
+    pub fn resolve_field_type_name(
+        schema_ctx: &SchemaContext,
+        field: &InputFieldDefinition,
         ctx: &SharedShalomGlobalContext,
-        input: ViaDeserialize<InputFieldDefinition>,
     ) -> String {
-        let ty_name = input.0.ty.name();
-        let ty = input.resolve_type(&ctx.schema_ctx);
-        let resolved = match ty {
+        let gql_ty = field.common.resolve_type(schema_ctx).ty;
+        let ty_name = gql_ty.name();
+
+        match gql_ty {
             GraphQLAny::Scalar(_) => {
                 if let Some(mapping) = ctx.find_custom_scalar(&ty_name) {
                     mapping
@@ -109,29 +116,58 @@ mod ext_jinja_fns {
             GraphQLAny::InputObject(_) => ty_name,
             GraphQLAny::Enum(enum_) => enum_.name.clone(),
             _ => unimplemented!("input type not supported"),
-        };
+        }
+    }
 
-        if input.is_optional && input.default_value.is_none() {
+    pub fn type_name_for_field(
+        ctx: &SharedShalomGlobalContext,
+        field: ViaDeserialize<InputFieldDefinition>,
+    ) -> String {
+        let field = field.0;
+        let resolved = resolve_field_type_name(&ctx.schema_ctx, &field, ctx);
+        if field.is_optional && field.default_value.is_none() {
             format!("Option<{}?>", resolved)
-        } else if input.is_optional {
+        } else if field.is_optional {
             format!("{}?", resolved)
         } else {
             resolved
         }
     }
 
-    pub fn parse_field_default_value(input: ViaDeserialize<InputFieldDefinition>) -> String {
-        input
-            .0
+    pub fn parse_field_default_value(
+        schema_ctx: &SchemaContext,
+        field: ViaDeserialize<InputFieldDefinition>,
+    ) -> String {
+        let field = field.0;
+        let default_value = field
             .default_value
             .as_ref()
             .expect("cannot parse default value that does not exist")
-            .to_string()
+            .to_string();
+        let ty = field.common.resolve_type(schema_ctx);
+        if let GraphQLAny::Enum(enum_) = ty.ty {
+            format!("{}.{}", enum_.name, default_value)
+        } else {
+            default_value.to_string()
+        }
     }
 
-    pub fn is_input_type(schema_ctx: &SchemaContext, ty: ViaDeserialize<FieldType>) -> bool {
-        let ty = schema_ctx.get_type(&ty.0.name()).unwrap();
+    pub fn is_input_type(
+        schema_ctx: &SchemaContext,
+        field: ViaDeserialize<SchemaFieldCommon>,
+    ) -> bool {
+        let ty = field.0.unresolved_type.resolve(schema_ctx).ty;
         matches!(ty, GraphQLAny::InputObject(_))
+    }
+
+    pub fn resolve_field_type(
+        schema_ctx: &SchemaContext,
+        schema_field: ViaDeserialize<SchemaFieldCommon>,
+    ) -> minijinja::value::Value {
+        let serialized = serde_json::to_value(schema_field.0.unresolved_type.resolve(schema_ctx))
+            .map_err(|e| format!("Failed to serialize field type: {}", e))
+            .unwrap();
+        minijinja::value::Value::from_serialize(serialized)
     }
 
     pub fn docstring(value: Option<String>) -> String {
@@ -188,14 +224,20 @@ impl TemplateEnv<'_> {
         });
 
         let schema_ctx_clone = ctx.schema_ctx.clone();
+        env.add_function("parse_field_default_value", move |a: _| {
+            ext_jinja_fns::parse_field_default_value(&schema_ctx_clone, a)
+        });
+
+        let schema_ctx_clone = ctx.schema_ctx.clone();
+        env.add_function("resolve_field_type", move |a: _| {
+            ext_jinja_fns::resolve_field_type(&schema_ctx_clone, a)
+        });
+
+        let schema_ctx_clone = ctx.schema_ctx.clone();
         env.add_function("is_input_type", move |a: _| {
             ext_jinja_fns::is_input_type(&schema_ctx_clone, a)
         });
 
-        env.add_function(
-            "parse_field_default_value",
-            ext_jinja_fns::parse_field_default_value,
-        );
         env.add_function("docstring", ext_jinja_fns::docstring);
         env.add_function("value_or_last", ext_jinja_fns::value_or_last);
         env.add_filter("if_not_last", ext_jinja_fns::if_not_last);
@@ -221,6 +263,7 @@ impl TemplateEnv<'_> {
     ) -> String {
         let template = self.env.get_template("operation").unwrap();
         let mut context = HashMap::new();
+
         context.insert("schema", context! { context => schema_ctx });
         context.insert("operation", context! { context => operations_ctx });
         context.insert("extra_imports", self.extra_imports.clone().into());
@@ -228,24 +271,17 @@ impl TemplateEnv<'_> {
             "custom_scalar_map",
             Value::from_serialize(&self.custom_scalar_map),
         );
+
         template.render(&context).unwrap()
     }
 
-    fn render_schema<T: Serialize>(
-        &self,
-        ctx: &SharedShalomGlobalContext,
-        schema_ctx: T,
-    ) -> String {
+    fn render_schema<T: Serialize>(&self, schema_ctx: T) -> String {
         let template = self.env.get_template("schema").unwrap();
         let mut context = HashMap::new();
+
         context.insert("schema", context! { context => schema_ctx });
-        let extra_imports: Vec<String> = ctx
-            .config
-            .custom_scalars
-            .values()
-            .map(|def| format!("import '{}';", def.impl_symbol.import_path.display()))
-            .collect();
         context.insert("extra_imports", self.extra_imports.clone().into());
+
         trace!("resolved schema template; rendering...");
         template.render(&context).unwrap()
     }
@@ -268,32 +304,26 @@ fn get_generation_path_for_operation(document_path: &Path, operation_name: &str)
 
 fn generate_operations_file(
     template_env: &TemplateEnv,
+    ctx: &SharedShalomGlobalContext,
     name: &str,
     operation: Rc<OperationContext>,
-    schema_ctx: SharedSchemaContext,
 ) {
     info!("rendering operation {}", name);
     let operation_file_path = operation.file_path.clone();
-    let rendered_content = template_env.render_operation(operation, schema_ctx);
+    let rendered_content = template_env.render_operation(operation, ctx.schema_ctx.clone());
     let generation_target = get_generation_path_for_operation(&operation_file_path, name);
     fs::write(&generation_target, rendered_content).unwrap();
     info!("Generated {}", generation_target.display());
 }
 
-fn generate_schema_file(
-    template_env: &TemplateEnv,
-    ctx: &SharedShalomGlobalContext,
-    path: &Path,
-    schema_ctx: &SchemaContext,
-) -> std::io::Result<()> {
+fn generate_schema_file(template_env: &TemplateEnv, path: &Path, schema_ctx: &SchemaContext) {
     info!("rendering schema file");
-    let rendered_content = template_env.render_schema(ctx, schema_ctx);
+    let rendered_content = template_env.render_schema(schema_ctx);
     let output_dir = path.join(GRAPHQL_DIRECTORY);
     create_dir_if_not_exists(&output_dir);
     let generation_target = output_dir.join(format!("schema.{}", END_OF_FILE));
-    fs::write(&generation_target, rendered_content)?;
+    fs::write(&generation_target, rendered_content).unwrap();
     info!("Generated {}", generation_target.display());
-    Ok(())
 }
 
 pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
@@ -321,9 +351,9 @@ pub fn codegen_entry_point(pwd: &Path) -> Result<()> {
         }
     }
 
-    generate_schema_file(&template_env, &ctx, pwd, ctx.schema_ctx.deref())?;
+    generate_schema_file(&template_env, pwd, ctx.schema_ctx.deref());
     for (name, operation) in ctx.operations() {
-        generate_operations_file(&template_env, &name, operation, ctx.schema_ctx.clone());
+        generate_operations_file(&template_env, &ctx, &name, operation);
     }
 
     Ok(())

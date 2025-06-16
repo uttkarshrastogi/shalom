@@ -91,11 +91,17 @@ class EnumInputObjectRequired_updateOrder {
       status_value = null;
     }
 
-    final int quantity_value = data['quantity'];
+    final int quantity_value;
 
-    final String name_value = data['name'];
+    quantity_value = data['quantity'];
 
-    final double price_value = data['price'];
+    final String name_value;
+
+    name_value = data['name'];
+
+    final double price_value;
+
+    price_value = data['price'];
 
     return EnumInputObjectRequired_updateOrder(
       status: status_value,
