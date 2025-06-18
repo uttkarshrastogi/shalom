@@ -9,7 +9,6 @@ import '__graphql__/UpdatePointWithInputNonNull.shalom.dart';
 import '__graphql__/schema.shalom.dart';
 import 'point.dart';
 
-
 void main() {
   final Point samplePoint = Point(x: 10, y: 20);
   final String samplePointRaw = "POINT (10, 20)";
@@ -21,9 +20,7 @@ void main() {
     var variables = UpdatePointCoordsNonNullVariables(coords: samplePoint);
     var variablesUpdated = variables.updateWith(coords: updatedPoint);
     expect(variablesUpdated.coords, updatedPoint);
-    expect(variables.toJson(), {
-      "coords": samplePointRaw,
-    });
+    expect(variables.toJson(), {"coords": samplePointRaw});
     final req =
         RequestUpdatePointCoordsNonNull(
           variables: UpdatePointCoordsNonNullVariables(coords: updatedPoint),
@@ -32,22 +29,15 @@ void main() {
   });
 
   test("optional custom scalar argument", () {
-    var variables = UpdatePointCoordsOptVariables(
-      coords: Some(samplePoint),
-    );
+    var variables = UpdatePointCoordsOptVariables(coords: Some(samplePoint));
     var variablesUpdated = variables.updateWith(
       coords: Some(Some(updatedPoint)),
     );
-    expect(
-      variablesUpdated.coords?.some(),
-      updatedPoint,
-    );
+    expect(variablesUpdated.coords?.some(), updatedPoint);
 
     expect(
       RequestUpdatePointCoordsOpt(
-        variables: UpdatePointCoordsOptVariables(
-          coords: Some(null),
-        ),
+        variables: UpdatePointCoordsOptVariables(coords: Some(null)),
       ).toRequest().variables,
       {"coords": null},
     );
@@ -61,9 +51,7 @@ void main() {
 
     expect(
       RequestUpdatePointCoordsOpt(
-        variables: UpdatePointCoordsOptVariables(
-          coords: None(),
-        ),
+        variables: UpdatePointCoordsOptVariables(coords: None()),
       ).toRequest().variables,
       {},
     );
@@ -104,10 +92,7 @@ void main() {
         name: "Location E",
       ),
     );
-    expect(
-      variablesUpdated.pointData.coords,
-      Some<Point?>(updatedPoint),
-    );
+    expect(variablesUpdated.pointData.coords, Some<Point?>(updatedPoint));
 
     final req =
         RequestUpdatePointWithInputCoordsOpt(variables: variables).toRequest();
@@ -146,9 +131,7 @@ void main() {
         GetPointWithDefaultCoordsRequest(
           variables: GetPointWithDefaultCoordsVariables(id: "test-id-1"),
         ).toRequest();
-    expect(req.variables, {
-      "id": "test-id-1",
-    });
+    expect(req.variables, {"id": "test-id-1"});
 
     final reqWithExplicitDefault =
         GetPointWithDefaultCoordsRequest(

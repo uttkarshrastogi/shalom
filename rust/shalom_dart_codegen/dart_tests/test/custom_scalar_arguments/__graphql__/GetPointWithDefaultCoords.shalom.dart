@@ -194,7 +194,7 @@ class GetPointWithDefaultCoordsVariables {
   final String id;
 
   GetPointWithDefaultCoordsVariables({
-    this.coords = const uomtoe.Point(x: 0,y: 0),
+    this.coords = const uomtoe.Point(x: 0, y: 0),
 
     required this.id,
   });
