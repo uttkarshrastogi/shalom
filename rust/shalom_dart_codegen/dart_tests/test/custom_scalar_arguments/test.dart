@@ -2,6 +2,12 @@ import 'package:test/test.dart';
 import 'package:shalom_core/shalom_core.dart'; // Assuming Shalom's core types are here
 
 // Import your custom scalar Dart class
+import '__graphql__/GetPointWithDefaultCoords.shalom.dart';
+import '__graphql__/UpdatePointCoordsNonNull.shalom.dart';
+import '__graphql__/UpdatePointCoordsOpt.shalom.dart';
+import '__graphql__/UpdatePointWithInputCoordsOpt.shalom.dart';
+import '__graphql__/UpdatePointWithInputNonNull.shalom.dart';
+import '__graphql__/schema.shalom.dart';
 import 'point.dart'; // Adjust path if your point.dart is elsewhere
 
 // Import the generated GraphQL operation files, adhering to your naming from CustomScalarInputs.graphql
