@@ -1,0 +1,44 @@
+# Corresponds to CustomScalarInputNonNull
+mutation UpdatePointCoordsNonNull($coords: Point!) {
+    updatePointCoords(coords: $coords) {
+        coords,
+        name,
+        id
+    }
+}
+
+# Corresponds to CustomScalarInputOpt and CustomScalarInputMaybe
+mutation UpdatePointCoordsOpt($coords: Point) {
+    updatePointCoordsOpt(coords: $coords) {
+        coords,
+        name,
+        id
+    }
+}
+
+# Corresponds to CustomScalarInputObjectNonNull
+mutation UpdatePointWithInputNonNull($pointData: PointDataInput!) {
+    updatePointWithInput(pointData: $pointData) {
+        coords,
+        name,
+        id
+    }
+}
+
+# Corresponds to CustomScalarInputObjectOpt
+mutation UpdatePointWithInputCoordsOpt($pointData: PointUpdateCoordsOpt!) {
+    updatePointWithInputCoordsOpt(pointData: $pointData) {
+        coords,
+        name,
+        id
+    }
+}
+
+# Corresponds to a custom scalar with a default value (similar to EnumWithDefaultValue)
+query GetPointWithDefaultCoords($id: ID!, $coords: Point = "POINT (0,0)") {
+    getPointById(id: $id, coords: $coords) {
+        coords,
+        name,
+        id
+    }
+}

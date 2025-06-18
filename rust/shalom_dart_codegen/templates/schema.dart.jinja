@@ -50,7 +50,7 @@ class {{ typename }} {
         {{ toJson_macro(fields) }}    
         return data;
     } 
-
+  {{ updateWith_macro(fields, typename) }}
 }
      
 {% endfor %}

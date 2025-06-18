@@ -2,26 +2,41 @@
 {% macro toJson_macro(fields) %}
 {% for name, field in fields | items %}
     {% set field_ty = resolve_field_type(field.common).ty %}
-    {% if field.is_optional and field.default_value is none %}  
+    {# New/Modified condition for custom scalars #}
+    {% if field_ty.kind == "Scalar" and field.is_custom_scalar %}
+        {% set scalar_impl = custom_scalar_impl_fullname(field_ty.name) %} {# Use field_ty.name for scalar type #}
+        {% if field.is_optional and field.default_value is none %}
+            if ({{ name }}.isSome()) {
+                if ({{ name }}.some() == null) {
+                    data["{{ name }}"] = null;
+                } else {
+                    data["{{ name }}"] = {{ scalar_impl }}.serialize({{ name }}.some()!);
+                }
+            }
+        {% else %} {# Non-nullable or optional with default, assuming it's always 'Some' with value/null or direct value #}
+            data["{{ name }}"] = {{ name }} == null ? null : {{ scalar_impl }}.serialize({{ name }}!);
+        {% endif %}
+    {# Existing logic for other types #}
+    {% elif field.is_optional and field.default_value is none %}
         if ({{ name }}.isSome()) {
-            {% if field_ty.kind == "InputObject" %} 
-                data["{{ name }}"] = {{ name }}.some()?.toJson();   
+            {% if field_ty.kind == "InputObject" %}
+                data["{{ name }}"] = {{ name }}.some()?.toJson();
             {% elif field_ty.kind == "Enum" %}
                 data["{{ name }}"] = {{ name }}.some()?.name;
-            {% else %}
+            {% else %} {# This 'else' will now cover standard (non-custom) scalars #}
                 data["{{ name }}"] = {{ name }}.some();
             {% endif %}
-        } 
+        }
     {% else %}
         {% if field_ty.kind == "InputObject" %}
             data["{{ name }}"] = {{ name }}.toJson();
         {% elif field_ty.kind == "Enum" %}
-            {% if field.is_optional %}
+            {% if field.is_optional %} {# For optional enums that are not None() #}
                 data["{{ name }}"] = {{ name }}?.name;
             {% else %}
                 data["{{ name }}"] = {{ name }}.name;
             {% endif %}
-        {% else %}
+        {% else %} {# This 'else' will cover standard (non-custom) scalars #}
             data["{{ name }}"] = {{ name }}; 
         {% endif %}
     {% endif %}
