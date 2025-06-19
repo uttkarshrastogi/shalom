@@ -1,4 +1,4 @@
-# Corresponds to CustomScalarInputNonNull
+
 mutation UpdatePointCoordsNonNull($coords: Point!) {
     updatePointCoords(coords: $coords) {
         coords,
@@ -7,7 +7,6 @@ mutation UpdatePointCoordsNonNull($coords: Point!) {
     }
 }
 
-# Corresponds to CustomScalarInputOpt and CustomScalarInputMaybe
 mutation UpdatePointCoordsOpt($coords: Point) {
     updatePointCoordsOpt(coords: $coords) {
         coords,
@@ -16,7 +15,6 @@ mutation UpdatePointCoordsOpt($coords: Point) {
     }
 }
 
-# Corresponds to CustomScalarInputObjectNonNull
 mutation UpdatePointWithInputNonNull($pointData: PointDataInput!) {
     updatePointWithInput(pointData: $pointData) {
         coords,
@@ -25,7 +23,6 @@ mutation UpdatePointWithInputNonNull($pointData: PointDataInput!) {
     }
 }
 
-# Corresponds to CustomScalarInputObjectOpt
 mutation UpdatePointWithInputCoordsOpt($pointData: PointUpdateCoordsOpt!) {
     updatePointWithInputCoordsOpt(pointData: $pointData) {
         coords,
@@ -34,7 +31,6 @@ mutation UpdatePointWithInputCoordsOpt($pointData: PointUpdateCoordsOpt!) {
     }
 }
 
-# Corresponds to a custom scalar with a default value (similar to EnumWithDefaultValue)
 query GetPointWithDefaultCoords($id: ID!, $coords: Point = "POINT (0,0)") {
     getPointById(id: $id, coords: $coords) {
         coords,

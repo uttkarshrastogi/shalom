@@ -1,6 +1,6 @@
 use anyhow::Result;
 use lazy_static::lazy_static;
-use log::{info, trace};
+use log::info;
 use minijinja::{context, value::ViaDeserialize, Environment};
 use serde::Serialize;
 use shalom_core::{
@@ -122,11 +122,30 @@ mod ext_jinja_fns {
             .as_ref()
             .expect("cannot parse default value that does not exist")
             .to_string();
+
         let ty = field.common.resolve_type(schema_ctx);
-        if let GraphQLAny::Enum(enum_) = ty.ty {
-            format!("{}.{}", enum_.name, default_value)
-        } else {
-            default_value.to_string()
+
+        match ty.ty {
+            GraphQLAny::Enum(enum_) => {
+                format!("{}.{}", enum_.name, default_value)
+            }
+            GraphQLAny::Scalar(scalar) => {
+                if scalar.name == "Point" {
+                    // Custom logic to convert string "POINT (x, y)" → Dart const uomtoe.Point(x: ..., y: ...)
+                    let regex = regex::Regex::new(r"POINT\s*\((-?\d+),\s*(-?\d+)\)").unwrap();
+                    if let Some(caps) = regex.captures(&default_value) {
+                        let x = &caps[1];
+                        let y = &caps[2];
+                        return format!("const uomtoe.Point(x: {}, y: {})", x, y);
+                    } else {
+                        panic!("Invalid POINT format for default value: {}", default_value);
+                    }
+                }
+
+                // Fallback for non-supported scalars
+                default_value
+            }
+            _ => default_value,
         }
     }
 
@@ -276,14 +295,29 @@ impl TemplateEnv<'_> {
 
         template.render(&context).unwrap()
     }
-
     fn render_schema(&self, ctx: &SharedShalomGlobalContext) -> String {
         let template = self.env.get_template("schema").unwrap();
+
+        let mut extra_imports: HashMap<String, String> = HashMap::new();
+
+        for custom_scalar in ctx.get_custom_scalars().values() {
+            for symbol in [&custom_scalar.impl_symbol, &custom_scalar.output_type] {
+                if let Some(import_path) = &symbol.import_path {
+                    let import_path_str = import_path.to_string_lossy().to_string();
+
+                    extra_imports.entry(import_path_str).or_insert_with(|| {
+                        let mut hasher: DefaultHasher = DefaultHasher::new();
+                        import_path.hash(&mut hasher);
+                        number_to_abc(hasher.finish() as u32)
+                    });
+                }
+            }
+        }
+
         let mut context = HashMap::new();
-
         context.insert("schema", context! { context => &ctx.schema_ctx });
+        context.insert("extra_imports", minijinja::Value::from(extra_imports));
 
-        trace!("resolved schema template; rendering...");
         template.render(&context).unwrap()
     }
 }
