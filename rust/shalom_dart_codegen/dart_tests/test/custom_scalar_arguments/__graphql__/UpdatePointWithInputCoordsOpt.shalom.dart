@@ -1,7 +1,7 @@
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names, unused_import, camel_case_types
 
 import "schema.shalom.dart";
-import '../point.dart' as uomtoe;
+import '../../custom_scalar/point.dart' as rmhlxei;
 
 import 'package:shalom_core/shalom_core.dart';
 
@@ -81,7 +81,7 @@ class UpdatePointWithInputCoordsOptResponse {
 class UpdatePointWithInputCoordsOpt_updatePointWithInputCoordsOpt {
   /// class members
 
-  final uomtoe.Point? coords;
+  final rmhlxei.Point? coords;
 
   final String name;
 
@@ -96,12 +96,12 @@ class UpdatePointWithInputCoordsOpt_updatePointWithInputCoordsOpt {
   static UpdatePointWithInputCoordsOpt_updatePointWithInputCoordsOpt fromJson(
     JsonObject data,
   ) {
-    final uomtoe.Point? coords_value;
+    final rmhlxei.Point? coords_value;
 
     coords_value =
         data['coords'] == null
             ? null
-            : uomtoe.pointScalarImpl.deserialize(data['coords']);
+            : rmhlxei.pointScalarImpl.deserialize(data['coords']);
 
     final String name_value;
 
@@ -123,12 +123,12 @@ class UpdatePointWithInputCoordsOpt_updatePointWithInputCoordsOpt {
   UpdatePointWithInputCoordsOpt_updatePointWithInputCoordsOpt updateWithJson(
     JsonObject data,
   ) {
-    final uomtoe.Point? coords_value;
+    final rmhlxei.Point? coords_value;
     if (data.containsKey('coords')) {
       coords_value =
           data['coords'] == null
               ? null
-              : uomtoe.pointScalarImpl.deserialize(data['coords']);
+              : rmhlxei.pointScalarImpl.deserialize(data['coords']);
     } else {
       coords_value = coords;
     }
@@ -171,7 +171,7 @@ class UpdatePointWithInputCoordsOpt_updatePointWithInputCoordsOpt {
   JsonObject toJson() {
     return {
       'coords':
-          coords == null ? null : uomtoe.pointScalarImpl.serialize(coords!),
+          coords == null ? null : rmhlxei.pointScalarImpl.serialize(coords!),
 
       'name': name,
 

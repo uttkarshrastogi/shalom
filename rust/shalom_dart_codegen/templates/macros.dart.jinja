@@ -2,7 +2,7 @@
 {% macro toJson_macro(fields) %}
 {% for name, field in fields | items %}
     {% set field_ty = resolve_field_type(field.common).ty %}
-    {# Check for custom scalars using our new function #}
+
     {% if field_ty.kind == "Scalar" and is_custom_scalar(field_ty.name) %}
         {% set scalar_impl = custom_scalar_impl_fullname(field_ty.name) %}
         {% if field.is_optional and field.default_value is none %}
@@ -14,21 +14,21 @@
                 }
             }
         {% else %}
-            {# Non-nullable or has default value #}
+
             {% if field.is_optional %}
                 data["{{ name }}"] = {{ name }} == null ? null : {{ scalar_impl }}.serialize({{ name }}!);
             {% else %}
                 data["{{ name }}"] = {{ scalar_impl }}.serialize({{ name }});
             {% endif %}
         {% endif %}
-    {# Existing logic for other types #}
+
     {% elif field.is_optional and field.default_value is none %}
         if ({{ name }}.isSome()) {
             {% if field_ty.kind == "InputObject" %}
                 data["{{ name }}"] = {{ name }}.some()?.toJson();
             {% elif field_ty.kind == "Enum" %}
                 data["{{ name }}"] = {{ name }}.some()?.name;
-            {% else %} {# Standard scalars #}
+            {% else %}
                 data["{{ name }}"] = {{ name }}.some();
             {% endif %}
         }
@@ -41,7 +41,7 @@
             {% else %}
                 data["{{ name }}"] = {{ name }}.name;
             {% endif %}
-        {% else %} {# Standard scalars #}
+        {% else %}
             data["{{ name }}"] = {{ name }}; 
         {% endif %}
     {% endif %}
@@ -189,7 +189,7 @@
         final {{ type_name_for_input_field(field) }} {{ name }}$next;
         {% if field.is_optional %}
             switch ({{name}}) {
-                {# if this is a "maybe" field #}
+
                 case Some(value: final data):
                     {{ name }}$next = data;
                 case None():

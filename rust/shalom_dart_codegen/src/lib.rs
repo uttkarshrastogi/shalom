@@ -129,22 +129,10 @@ mod ext_jinja_fns {
             GraphQLAny::Enum(enum_) => {
                 format!("{}.{}", enum_.name, default_value)
             }
-            GraphQLAny::Scalar(scalar) => {
-                if scalar.name == "Point" {
-                    // Custom logic to convert string "POINT (x, y)" → Dart const uomtoe.Point(x: ..., y: ...)
-                    let regex = regex::Regex::new(r"POINT\s*\((-?\d+),\s*(-?\d+)\)").unwrap();
-                    if let Some(caps) = regex.captures(&default_value) {
-                        let x = &caps[1];
-                        let y = &caps[2];
-                        return format!("const uomtoe.Point(x: {}, y: {})", x, y);
-                    } else {
-                        panic!("Invalid POINT format for default value: {}", default_value);
-                    }
-                }
-
-                // Fallback for non-supported scalars
-                default_value
-            }
+            GraphQLAny::Scalar(scalar) => match scalar.name.as_str() {
+                "ID" | "String" | "Int" | "Float" | "Boolean" => default_value,
+                _ => "null".to_string(),
+            },
             _ => default_value,
         }
     }

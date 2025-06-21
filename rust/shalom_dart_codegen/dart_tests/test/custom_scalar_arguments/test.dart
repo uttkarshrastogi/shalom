@@ -5,7 +5,7 @@ import '__graphql__/UpdatePointCoordsOpt.shalom.dart';
 import '__graphql__/UpdatePointWithInputCoordsOpt.shalom.dart';
 import '__graphql__/UpdatePointWithInputNonNull.shalom.dart';
 import '__graphql__/schema.shalom.dart';
-import 'point.dart';
+import '../custom_scalar/point.dart';
 
 void main() {
   final Point samplePoint = Point(x: 10, y: 20);

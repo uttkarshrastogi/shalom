@@ -2,7 +2,7 @@
 
 import 'package:shalom_core/shalom_core.dart';
 
-import '../point.dart' as uomtoe;
+import '../../custom_scalar/point.dart' as rmhlxei;
 
 // ------------ Enum DEFINITIONS -------------
 
@@ -10,7 +10,7 @@ import '../point.dart' as uomtoe;
 // ------------ Input DEFINITIONS -------------
 
 class PointDataInput {
-  final uomtoe.Point coords;
+  final rmhlxei.Point coords;
 
   final String name;
 
@@ -19,15 +19,15 @@ class PointDataInput {
   JsonObject toJson() {
     JsonObject data = {};
 
-    data["coords"] = uomtoe.pointScalarImpl.serialize(coords);
+    data["coords"] = rmhlxei.pointScalarImpl.serialize(coords);
 
     data["name"] = name;
 
     return data;
   }
 
-  PointDataInput updateWith({uomtoe.Point? coords, String? name}) {
-    final uomtoe.Point coords$next;
+  PointDataInput updateWith({rmhlxei.Point? coords, String? name}) {
+    final rmhlxei.Point coords$next;
 
     if (coords != null) {
       coords$next = coords;
@@ -48,7 +48,7 @@ class PointDataInput {
 }
 
 class PointUpdateCoordsOpt {
-  final Option<uomtoe.Point?> coords;
+  final Option<rmhlxei.Point?> coords;
 
   final String name;
 
@@ -61,7 +61,7 @@ class PointUpdateCoordsOpt {
       if (coords.some() == null) {
         data["coords"] = null;
       } else {
-        data["coords"] = uomtoe.pointScalarImpl.serialize(coords.some()!);
+        data["coords"] = rmhlxei.pointScalarImpl.serialize(coords.some()!);
       }
     }
 
@@ -71,11 +71,11 @@ class PointUpdateCoordsOpt {
   }
 
   PointUpdateCoordsOpt updateWith({
-    Option<Option<uomtoe.Point?>> coords = const None(),
+    Option<Option<rmhlxei.Point?>> coords = const None(),
 
     String? name,
   }) {
-    final Option<uomtoe.Point?> coords$next;
+    final Option<rmhlxei.Point?> coords$next;
 
     switch (coords) {
       case Some(value: final data):

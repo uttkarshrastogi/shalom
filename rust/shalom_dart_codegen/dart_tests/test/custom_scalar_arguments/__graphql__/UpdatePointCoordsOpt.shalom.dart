@@ -1,7 +1,7 @@
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names, unused_import, camel_case_types
 
 import "schema.shalom.dart";
-import '../point.dart' as uomtoe;
+import '../../custom_scalar/point.dart' as rmhlxei;
 
 import 'package:shalom_core/shalom_core.dart';
 
@@ -73,7 +73,7 @@ class UpdatePointCoordsOptResponse {
 class UpdatePointCoordsOpt_updatePointCoordsOpt {
   /// class members
 
-  final uomtoe.Point? coords;
+  final rmhlxei.Point? coords;
 
   final String name;
 
@@ -86,12 +86,12 @@ class UpdatePointCoordsOpt_updatePointCoordsOpt {
     required this.id,
   });
   static UpdatePointCoordsOpt_updatePointCoordsOpt fromJson(JsonObject data) {
-    final uomtoe.Point? coords_value;
+    final rmhlxei.Point? coords_value;
 
     coords_value =
         data['coords'] == null
             ? null
-            : uomtoe.pointScalarImpl.deserialize(data['coords']);
+            : rmhlxei.pointScalarImpl.deserialize(data['coords']);
 
     final String name_value;
 
@@ -111,12 +111,12 @@ class UpdatePointCoordsOpt_updatePointCoordsOpt {
   }
 
   UpdatePointCoordsOpt_updatePointCoordsOpt updateWithJson(JsonObject data) {
-    final uomtoe.Point? coords_value;
+    final rmhlxei.Point? coords_value;
     if (data.containsKey('coords')) {
       coords_value =
           data['coords'] == null
               ? null
-              : uomtoe.pointScalarImpl.deserialize(data['coords']);
+              : rmhlxei.pointScalarImpl.deserialize(data['coords']);
     } else {
       coords_value = coords;
     }
@@ -159,7 +159,7 @@ class UpdatePointCoordsOpt_updatePointCoordsOpt {
   JsonObject toJson() {
     return {
       'coords':
-          coords == null ? null : uomtoe.pointScalarImpl.serialize(coords!),
+          coords == null ? null : rmhlxei.pointScalarImpl.serialize(coords!),
 
       'name': name,
 
@@ -194,7 +194,7 @@ class RequestUpdatePointCoordsOpt extends Requestable {
 }
 
 class UpdatePointCoordsOptVariables {
-  final Option<uomtoe.Point?> coords;
+  final Option<rmhlxei.Point?> coords;
 
   UpdatePointCoordsOptVariables({this.coords = const None()});
 
@@ -205,7 +205,7 @@ class UpdatePointCoordsOptVariables {
       if (coords.some() == null) {
         data["coords"] = null;
       } else {
-        data["coords"] = uomtoe.pointScalarImpl.serialize(coords.some()!);
+        data["coords"] = rmhlxei.pointScalarImpl.serialize(coords.some()!);
       }
     }
 
@@ -213,9 +213,9 @@ class UpdatePointCoordsOptVariables {
   }
 
   UpdatePointCoordsOptVariables updateWith({
-    Option<Option<uomtoe.Point?>> coords = const None(),
+    Option<Option<rmhlxei.Point?>> coords = const None(),
   }) {
-    final Option<uomtoe.Point?> coords$next;
+    final Option<rmhlxei.Point?> coords$next;
 
     switch (coords) {
       case Some(value: final data):

@@ -1,7 +1,7 @@
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names, unused_import, camel_case_types
 
 import "schema.shalom.dart";
-import '../point.dart' as uomtoe;
+import '../../custom_scalar/point.dart' as rmhlxei;
 
 import 'package:shalom_core/shalom_core.dart';
 
@@ -67,7 +67,7 @@ class GetPointWithDefaultCoordsResponse {
 class GetPointWithDefaultCoords_getPointById {
   /// class members
 
-  final uomtoe.Point? coords;
+  final rmhlxei.Point? coords;
 
   final String name;
 
@@ -80,12 +80,12 @@ class GetPointWithDefaultCoords_getPointById {
     required this.id,
   });
   static GetPointWithDefaultCoords_getPointById fromJson(JsonObject data) {
-    final uomtoe.Point? coords_value;
+    final rmhlxei.Point? coords_value;
 
     coords_value =
         data['coords'] == null
             ? null
-            : uomtoe.pointScalarImpl.deserialize(data['coords']);
+            : rmhlxei.pointScalarImpl.deserialize(data['coords']);
 
     final String name_value;
 
@@ -105,12 +105,12 @@ class GetPointWithDefaultCoords_getPointById {
   }
 
   GetPointWithDefaultCoords_getPointById updateWithJson(JsonObject data) {
-    final uomtoe.Point? coords_value;
+    final rmhlxei.Point? coords_value;
     if (data.containsKey('coords')) {
       coords_value =
           data['coords'] == null
               ? null
-              : uomtoe.pointScalarImpl.deserialize(data['coords']);
+              : rmhlxei.pointScalarImpl.deserialize(data['coords']);
     } else {
       coords_value = coords;
     }
@@ -153,7 +153,7 @@ class GetPointWithDefaultCoords_getPointById {
   JsonObject toJson() {
     return {
       'coords':
-          coords == null ? null : uomtoe.pointScalarImpl.serialize(coords!),
+          coords == null ? null : rmhlxei.pointScalarImpl.serialize(coords!),
 
       'name': name,
 
@@ -189,21 +189,17 @@ class RequestGetPointWithDefaultCoords extends Requestable {
 }
 
 class GetPointWithDefaultCoordsVariables {
-  final uomtoe.Point? coords;
+  final rmhlxei.Point? coords;
 
   final String id;
 
-  GetPointWithDefaultCoordsVariables({
-    this.coords = const uomtoe.Point(x: 0, y: 0),
-
-    required this.id,
-  });
+  GetPointWithDefaultCoordsVariables({this.coords, required this.id});
 
   JsonObject toJson() {
     JsonObject data = {};
 
     data["coords"] =
-        coords == null ? null : uomtoe.pointScalarImpl.serialize(coords!);
+        coords == null ? null : rmhlxei.pointScalarImpl.serialize(coords!);
 
     data["id"] = id;
 
@@ -211,11 +207,11 @@ class GetPointWithDefaultCoordsVariables {
   }
 
   GetPointWithDefaultCoordsVariables updateWith({
-    Option<uomtoe.Point?> coords = const None(),
+    Option<rmhlxei.Point?> coords = const None(),
 
     String? id,
   }) {
-    final uomtoe.Point? coords$next;
+    final rmhlxei.Point? coords$next;
 
     switch (coords) {
       case Some(value: final data):

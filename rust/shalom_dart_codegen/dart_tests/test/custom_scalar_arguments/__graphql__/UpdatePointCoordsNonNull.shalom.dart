@@ -1,7 +1,7 @@
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names, unused_import, camel_case_types
 
 import "schema.shalom.dart";
-import '../point.dart' as uomtoe;
+import '../../custom_scalar/point.dart' as rmhlxei;
 
 import 'package:shalom_core/shalom_core.dart';
 
@@ -73,7 +73,7 @@ class UpdatePointCoordsNonNullResponse {
 class UpdatePointCoordsNonNull_updatePointCoords {
   /// class members
 
-  final uomtoe.Point? coords;
+  final rmhlxei.Point? coords;
 
   final String name;
 
@@ -86,12 +86,12 @@ class UpdatePointCoordsNonNull_updatePointCoords {
     required this.id,
   });
   static UpdatePointCoordsNonNull_updatePointCoords fromJson(JsonObject data) {
-    final uomtoe.Point? coords_value;
+    final rmhlxei.Point? coords_value;
 
     coords_value =
         data['coords'] == null
             ? null
-            : uomtoe.pointScalarImpl.deserialize(data['coords']);
+            : rmhlxei.pointScalarImpl.deserialize(data['coords']);
 
     final String name_value;
 
@@ -111,12 +111,12 @@ class UpdatePointCoordsNonNull_updatePointCoords {
   }
 
   UpdatePointCoordsNonNull_updatePointCoords updateWithJson(JsonObject data) {
-    final uomtoe.Point? coords_value;
+    final rmhlxei.Point? coords_value;
     if (data.containsKey('coords')) {
       coords_value =
           data['coords'] == null
               ? null
-              : uomtoe.pointScalarImpl.deserialize(data['coords']);
+              : rmhlxei.pointScalarImpl.deserialize(data['coords']);
     } else {
       coords_value = coords;
     }
@@ -159,7 +159,7 @@ class UpdatePointCoordsNonNull_updatePointCoords {
   JsonObject toJson() {
     return {
       'coords':
-          coords == null ? null : uomtoe.pointScalarImpl.serialize(coords!),
+          coords == null ? null : rmhlxei.pointScalarImpl.serialize(coords!),
 
       'name': name,
 
@@ -194,20 +194,20 @@ class RequestUpdatePointCoordsNonNull extends Requestable {
 }
 
 class UpdatePointCoordsNonNullVariables {
-  final uomtoe.Point coords;
+  final rmhlxei.Point coords;
 
   UpdatePointCoordsNonNullVariables({required this.coords});
 
   JsonObject toJson() {
     JsonObject data = {};
 
-    data["coords"] = uomtoe.pointScalarImpl.serialize(coords);
+    data["coords"] = rmhlxei.pointScalarImpl.serialize(coords);
 
     return data;
   }
 
-  UpdatePointCoordsNonNullVariables updateWith({uomtoe.Point? coords}) {
-    final uomtoe.Point coords$next;
+  UpdatePointCoordsNonNullVariables updateWith({rmhlxei.Point? coords}) {
+    final rmhlxei.Point coords$next;
 
     if (coords != null) {
       coords$next = coords;
