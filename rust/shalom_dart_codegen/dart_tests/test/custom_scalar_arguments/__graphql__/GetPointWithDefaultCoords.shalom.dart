@@ -202,7 +202,8 @@ class GetPointWithDefaultCoordsVariables {
   JsonObject toJson() {
     JsonObject data = {};
 
-    data["coords"] = coords;
+    data["coords"] =
+        coords == null ? null : uomtoe.pointScalarImpl.serialize(coords!);
 
     data["id"] = id;
 

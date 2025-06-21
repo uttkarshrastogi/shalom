@@ -201,7 +201,7 @@ class UpdatePointCoordsNonNullVariables {
   JsonObject toJson() {
     JsonObject data = {};
 
-    data["coords"] = coords;
+    data["coords"] = uomtoe.pointScalarImpl.serialize(coords);
 
     return data;
   }

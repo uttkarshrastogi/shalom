@@ -2,9 +2,9 @@
 {% macro toJson_macro(fields) %}
 {% for name, field in fields | items %}
     {% set field_ty = resolve_field_type(field.common).ty %}
-    {# New/Modified condition for custom scalars #}
-    {% if field_ty.kind == "Scalar" and field.is_custom_scalar %}
-        {% set scalar_impl = custom_scalar_impl_fullname(field_ty.name) %} {# Use field_ty.name for scalar type #}
+    {# Check for custom scalars using our new function #}
+    {% if field_ty.kind == "Scalar" and is_custom_scalar(field_ty.name) %}
+        {% set scalar_impl = custom_scalar_impl_fullname(field_ty.name) %}
         {% if field.is_optional and field.default_value is none %}
             if ({{ name }}.isSome()) {
                 if ({{ name }}.some() == null) {
@@ -13,8 +13,13 @@
                     data["{{ name }}"] = {{ scalar_impl }}.serialize({{ name }}.some()!);
                 }
             }
-        {% else %} {# Non-nullable or optional with default, assuming it's always 'Some' with value/null or direct value #}
-            data["{{ name }}"] = {{ name }} == null ? null : {{ scalar_impl }}.serialize({{ name }}!);
+        {% else %}
+            {# Non-nullable or has default value #}
+            {% if field.is_optional %}
+                data["{{ name }}"] = {{ name }} == null ? null : {{ scalar_impl }}.serialize({{ name }}!);
+            {% else %}
+                data["{{ name }}"] = {{ scalar_impl }}.serialize({{ name }});
+            {% endif %}
         {% endif %}
     {# Existing logic for other types #}
     {% elif field.is_optional and field.default_value is none %}
@@ -23,7 +28,7 @@
                 data["{{ name }}"] = {{ name }}.some()?.toJson();
             {% elif field_ty.kind == "Enum" %}
                 data["{{ name }}"] = {{ name }}.some()?.name;
-            {% else %} {# This 'else' will now cover standard (non-custom) scalars #}
+            {% else %} {# Standard scalars #}
                 data["{{ name }}"] = {{ name }}.some();
             {% endif %}
         }
@@ -31,12 +36,12 @@
         {% if field_ty.kind == "InputObject" %}
             data["{{ name }}"] = {{ name }}.toJson();
         {% elif field_ty.kind == "Enum" %}
-            {% if field.is_optional %} {# For optional enums that are not None() #}
+            {% if field.is_optional %}
                 data["{{ name }}"] = {{ name }}?.name;
             {% else %}
                 data["{{ name }}"] = {{ name }}.name;
             {% endif %}
-        {% else %} {# This 'else' will cover standard (non-custom) scalars #}
+        {% else %} {# Standard scalars #}
             data["{{ name }}"] = {{ name }}; 
         {% endif %}
     {% endif %}

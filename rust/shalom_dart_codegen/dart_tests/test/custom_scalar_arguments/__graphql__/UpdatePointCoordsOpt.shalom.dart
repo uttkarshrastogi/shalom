@@ -202,7 +202,11 @@ class UpdatePointCoordsOptVariables {
     JsonObject data = {};
 
     if (coords.isSome()) {
-      data["coords"] = coords.some();
+      if (coords.some() == null) {
+        data["coords"] = null;
+      } else {
+        data["coords"] = uomtoe.pointScalarImpl.serialize(coords.some()!);
+      }
     }
 
     return data;

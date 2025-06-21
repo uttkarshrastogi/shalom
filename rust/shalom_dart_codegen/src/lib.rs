@@ -196,6 +196,10 @@ mod ext_jinja_fns {
             .expect("Custom scalar not found");
         scalar.impl_symbol.symbol_fullname()
     }
+
+    pub fn is_custom_scalar(ctx: &SharedShalomGlobalContext, scalar_name: String) -> bool {
+        ctx.find_custom_scalar(&scalar_name).is_some()
+    }
 }
 
 /// takes a number and returns itself as if the abc was 123, i.e 143 would be "adc"
@@ -271,6 +275,11 @@ impl TemplateEnv<'_> {
         let ctx_clone = ctx.clone();
         env.add_function("custom_scalar_impl_fullname", move |a: _| {
             ext_jinja_fns::custom_scalar_impl_fullname(&ctx_clone, a)
+        });
+
+        let ctx_clone = ctx.clone();
+        env.add_function("is_custom_scalar", move |name: String| {
+            ext_jinja_fns::is_custom_scalar(&ctx_clone, name)
         });
 
         env.add_function("docstring", ext_jinja_fns::docstring);

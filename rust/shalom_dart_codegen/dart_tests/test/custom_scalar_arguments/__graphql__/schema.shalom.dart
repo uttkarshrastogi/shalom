@@ -19,7 +19,7 @@ class PointDataInput {
   JsonObject toJson() {
     JsonObject data = {};
 
-    data["coords"] = coords;
+    data["coords"] = uomtoe.pointScalarImpl.serialize(coords);
 
     data["name"] = name;
 
@@ -58,7 +58,11 @@ class PointUpdateCoordsOpt {
     JsonObject data = {};
 
     if (coords.isSome()) {
-      data["coords"] = coords.some();
+      if (coords.some() == null) {
+        data["coords"] = null;
+      } else {
+        data["coords"] = uomtoe.pointScalarImpl.serialize(coords.some()!);
+      }
     }
 
     data["name"] = name;
